@@ -2,7 +2,7 @@ name: Deploy GitHub Pages
 
 on:
   push:
-    branches: [main]          # dispara em todo push na main
+    branches: [principal]     # dispara em todo push na principal
   workflow_dispatch:          # permite rodar manualmente pelo GitHub UI
 
 permissions:
