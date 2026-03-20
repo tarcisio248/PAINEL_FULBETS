@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FULBETS — Painel de Análise Esportiva</title>
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --card: #161616;
+    --border: #2a2a2a;
+    --cyan: #00e5ff;
+    --green: #00ff88;
+    --purple: #a855f7;
+    --amber: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --font: 'JetBrains Mono', 'Courier New', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 24px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--cyan), var(--purple));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .logo-text {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--cyan);
+  }
+
+  .logo-sub {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .header-meta {
+    text-align: right;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+
+  .live-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    margin-right: 5px;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ── MAIN ── */
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+
+  /* ── SECTION TITLE ── */
+  .section-title {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── CARDS GRID ── */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    text-decoration: none;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent, var(--cyan));
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .card:hover {
+    border-color: var(--accent, var(--cyan));
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0,229,255,0.08);
+  }
+
+  .card:hover::before { opacity: 1; }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-icon {
+    font-size: 24px;
+  }
+
+  .card-badge {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid currentColor;
+    color: var(--accent, var(--cyan));
+  }
+
+  .card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.5px;
+  }
+
+  .card-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .card-footer {
+    margin-top: 6px;
+    font-size: 10px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .tag {
+    background: #1e1e1e;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  /* ── DATA SECTION ── */
+  .data-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+    margin-bottom: 48px;
+  }
+
+  .data-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color 0.2s;
+  }
+
+  .data-card:hover {
+    border-color: var(--accent, var(--amber));
+  }
+
+  .data-card-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .data-card-info { flex: 1; min-width: 0; }
+
+  .data-card-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .data-card-meta {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  footer span {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .gh-link {
+    font-size: 11px;
+    color: var(--cyan);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .gh-link:hover { text-decoration: underline; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 600px) {
+    header { padding: 16px 20px; }
+    main { padding: 24px 16px; }
+    footer { padding: 16px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚽</div>
+    <div>
+      <div class="logo-text">FULBETS</div>
+      <div class="logo-sub">Football Analytics Platform</div>
+    </div>
+  </div>
+  <div class="header-meta">
+    <div><span class="live-dot"></span>GitHub Pages</div>
+    <div id="last-update">Carregando...</div>
+    <div>tarcisio248/PAINEL_FULBETS</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- PAINÉIS -->
+  <div class="section-title">Painéis de Análise</div>
+  <div class="cards-grid">
+
+    <a class="card" href="PAINEL_FULLBETS_FINAL.html" style="--accent: var(--cyan)">
+      <div class="card-header">
+        <span class="card-icon">📊</span>
+        <span class="card-badge">Principal</span>
+      </div>
+      <div class="card-title">Painel FullBets Final</div>
+      <div class="card-desc">Análise completa de partidas — Over/Under, BTTS, perfil de gols M60 e primeiro gol. Dashboard integrado com todos os dados.</div>
+      <div class="card-footer">
+        <span class="tag">HTML</span>
+        <span class="tag">CSV</span>
+        <span class="tag">Charts</span>
+      </div>
+    </a>
+
+    <a class="card" href="rodada_atual_v3.ipynb" style="--accent: var(--green)">
+      <div class="card-header">
+        <span class="card-icon">🔄</span>
+        <span class="card-badge">Rodada</span>
+      </div>
+      <div class="card-title">Rodada Atual v3</div>
+      <div class="card-desc">Notebook de análise da rodada em curso. Previsões e classificações para jogos do dia usando modelo v3.</div>
+      <div class="card-footer">
+        <span class="tag">Jupyter</span>
+        <span class="tag">modelo_v3</span>
+      </div>
+    </a>
+
+    <a class="card" href="base_historica_v3.ipynb" style="--accent: var(--purple)">
+      <div class="card-header">
+        <span class="card-icon">📚</span>
+        <span class="card-badge">Histórico</span>
+      </div>
+      <div class="card-title">Base Histórica v3</div>
+      <div class="card-desc">Pipeline de construção e atualização da base histórica anti-data-leakage com features N5/N10 e scores de 8 mercados.</div>
+      <div class="card-footer">
+        <span class="tag">Jupyter</span>
+        <span class="tag">Anti-leakage</span>
+      </div>
+    </a>
+
+    <a class="card" href="footystats_perfil_over_under.ipynb" style="--accent: var(--amber)">
+      <div class="card-header">
+        <span class="card-icon">📈</span>
+        <span class="card-badge">Over/Under</span>
+      </div>
+      <div class="card-title">Perfil Over/Under</div>
+      <div class="card-desc">Análise de perfil de times para mercados Over/Under. Taxas históricas, médias e tendências por liga.</div>
+      <div class="card-footer">
+        <span class="tag">FootyStats</span>
+        <span class="tag">Over 2.5</span>
+      </div>
+    </a>
+
+    <a class="card" href="footystats_perfil_1gol_2.ipynb" style="--accent: var(--cyan)">
+      <div class="card-header">
+        <span class="card-icon">⚡</span>
+        <span class="card-badge">1º Gol</span>
+      </div>
+      <div class="card-title">Perfil 1º Gol</div>
+      <div class="card-desc">Análise de padrões de primeiro gol por equipe. Minutos, probabilidades e contexto de placar.</div>
+      <div class="card-footer">
+        <span class="tag">FootyStats</span>
+        <span class="tag">First Goal</span>
+      </div>
+    </a>
+
+    <a class="card" href="footystats_perfil_M60.ipynb" style="--accent: var(--green)">
+      <div class="card-header">
+        <span class="card-icon">⏱️</span>
+        <span class="card-badge">Late Goal</span>
+      </div>
+      <div class="card-title">Perfil Gols M60</div>
+      <div class="card-desc">Análise de gols após o minuto 60. Late Goal Threat Index (IVT) e estratégias de entrada tardia.</div>
+      <div class="card-footer">
+        <span class="tag">TG70</span>
+        <span class="tag">FG70</span>
+        <span class="tag">IVT</span>
+      </div>
+    </a>
+
+  </div>
+
+  <!-- DADOS -->
+  <div class="section-title">Arquivos de Dados</div>
+  <div class="data-grid">
+
+    <a class="data-card" href="rodada_atual_v3.csv" style="--accent: var(--cyan)" download>
+      <span class="data-card-icon">📄</span>
+      <div class="data-card-info">
+        <div class="data-card-name">rodada_atual_v3.csv</div>
+        <div class="data-card-meta">Partidas da rodada atual</div>
+      </div>
+    </a>
+
+    <a class="data-card" href="0_PAINEL_EVOLUTION_JOGOS_GOLS_M60_API.csv" style="--accent: var(--green)" download>
+      <span class="data-card-icon">📄</span>
+      <div class="data-card-info">
+        <div class="data-card-name">Gols M60 API</div>
+        <div class="data-card-meta">Jogos — gols após min 60</div>
+      </div>
+    </a>
+
+    <a class="data-card" href="0_PAINEL_EVOLUTION_JOGOS_MOMENTO_1GOL_API.csv" style="--accent: var(--amber)" download>
+      <span class="data-card-icon">📄</span>
+      <div class="data-card-info">
+        <div class="data-card-name">Momento 1º Gol API</div>
+        <div class="data-card-meta">Dados de primeiro gol por partida</div>
+      </div>
+    </a>
+
+    <a class="data-card" href="0_PAINEL_PERFIL_OVER_UNDER.csv" style="--accent: var(--purple)" download>
+      <span class="data-card-icon">📄</span>
+      <div class="data-card-info">
+        <div class="data-card-name">Perfil Over/Under</div>
+        <div class="data-card-meta">Histórico Over/Under por equipe</div>
+      </div>
+    </a>
+
+    <a class="data-card" href="base_historica_v3.csv" style="--accent: var(--cyan)" download>
+      <span class="data-card-icon">📄</span>
+      <div class="data-card-info">
+        <div class="data-card-name">base_historica_v3.csv</div>
+        <div class="data-card-meta">Base histórica completa com features</div>
+      </div>
+    </a>
+
+    <a class="data-card" href="raw_2526.csv" style="--accent: var(--green)" download>
+      <span class="data-card-icon">📄</span>
+      <div class="data-card-info">
+        <div class="data-card-name">raw_2526.csv</div>
+        <div class="data-card-meta">Dados brutos temporada 25/26</div>
+      </div>
+    </a>
+
+    <a class="data-card" href="elo_ratings.json" style="--accent: var(--amber)" download>
+      <span class="data-card-icon">📋</span>
+      <div class="data-card-info">
+        <div class="data-card-name">elo_ratings.json</div>
+        <div class="data-card-meta">Ratings ELO por equipe</div>
+      </div>
+    </a>
+
+  </div>
+
+</main>
+
+<footer>
+  <span>⚽ FULBETS Analytics · <span id="year"></span></span>
+  <a class="gh-link" href="https://github.com/tarcisio248/PAINEL_FULBETS" target="_blank">
+    ⬡ tarcisio248/PAINEL_FULBETS
+  </a>
+</footer>
+
+<script>
+  // Ano atual
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // Data de última atualização via GitHub API
+  fetch('https://api.github.com/repos/tarcisio248/PAINEL_FULBETS/commits/main')
+    .then(r => r.json())
+    .then(data => {
+      const date = data?.commit?.committer?.date;
+      if (date) {
+        const d = new Date(date);
+        document.getElementById('last-update').textContent =
+          'Atualizado: ' + d.toLocaleDateString('pt-BR', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+          });
+      }
+    })
+    .catch(() => {
+      document.getElementById('last-update').textContent = 'Atualizado: ' +
+        new Date().toLocaleDateString('pt-BR');
+    });
+</script>
+</body>
+</html>
