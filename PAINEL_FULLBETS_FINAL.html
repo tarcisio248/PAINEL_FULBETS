@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>FULLBETS — 2026-03-21 01:25</title>
+<title>FULLBETS — 2026-03-21</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <style>
 :root {
@@ -2084,6 +2084,48 @@ document.addEventListener('DOMContentLoaded', function(){
   setupSlot('dz3','fi3',function(f){ lerCSV(f,carregarPerfilM60); });
   setupSlot('dz4','fi4',function(f){ lerCSV(f,carregarPerfilOU); });
   setupSlot('dz5','fi5',function(f){ lerCSV(f,carregarBaseHistorica); });
+
+  // ── AUTOLOAD: busca CSVs direto do repositório ──────────────
+  var BASE = (function(){
+    var p = window.location.pathname.replace(/\/[^/]*$/, '/');
+    return window.location.origin + p;
+  })();
+
+  var csvs = [
+    { url: BASE + 'rodada_atual_sos_v3.csv',                   fn: carregarJogos        },
+    { url: BASE + '0_PAINEL_EVOLUTION_JOGOS_MOMENTO_1GOL_API.csv', fn: carregarPerfilGol    },
+    { url: BASE + '0_PAINEL_EVOLUTION_JOGOS_GOLS_M60_API.csv', fn: carregarPerfilM60    },
+    { url: BASE + '0_PAINEL_PERFIL_OVER_UNDER.csv',            fn: carregarPerfilOU     },
+    { url: BASE + 'base_historica_v3.csv',                     fn: carregarBaseHistorica}
+  ];
+
+  var loaded = 0;
+  var total  = csvs.length;
+
+  // Mostrar indicador de carregamento na tela de upload
+  var sub = document.querySelector('.upload-sub');
+  if(sub) sub.textContent = 'Carregando dados automaticamente…';
+
+  csvs.forEach(function(c){
+    fetch(c.url)
+      .then(function(r){
+        if(!r.ok) throw new Error('HTTP '+r.status+' — '+c.url);
+        return r.text();
+      })
+      .then(function(txt){
+        c.fn(txt, c.url.split('/').pop());
+        loaded++;
+        if(loaded === total) iniciarDash();
+      })
+      .catch(function(err){
+        console.warn('[AUTOLOAD] Falha em '+c.url+':', err.message);
+        loaded++;
+        // Mesmo com falha nos opcionais, inicia se jogos já carregaram
+        if(loaded === total && typeof partidas !== 'undefined' && partidas && partidas.length > 0){
+          iniciarDash();
+        }
+      });
+  });
 });
 </script>
 
