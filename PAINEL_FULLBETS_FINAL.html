@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>FULLBETS — Análise de Valor</title>
+<title>FULLBETS — 2026-03-21 01:25</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <style>
 :root {
@@ -643,6 +643,109 @@ var OVHT_THRESHOLD = 55;
 var OVFT_THRESHOLD = 50;
 
 // ════════════════════════════════════════════════════════════
+// REGRESSÃO À MÉDIA — Parâmetros μ/σ calibrados na base histórica v3 (n≈5k jogos)
+// Z = (x − μ) / σ   |Z|>1.5 = candidato à regressão
+// μ_reg = α·x_recente + (1−α)·μ_histórico  (α=0.30)
+// ════════════════════════════════════════════════════════════
+var RTM_PARAMS = {
+  xg_home:   { mu: 1.5592, sigma: 0.3601 },
+  xg_away:   { mu: 1.3208, sigma: 0.3242 },
+  gols_home: { mu: 1.5336, sigma: 0.6711 },
+  gols_away: { mu: 1.2656, sigma: 0.5790 },
+  vit_home:  { mu: 0.5002, sigma: 0.2456 },
+  vit_away:  { mu: 0.3916, sigma: 0.2172 },
+};
+var RTM_ALPHA = 0.30;
+
+function calcZ(val, mu, sigma){ return sigma>0 ? (val-mu)/sigma : 0; }
+
+function sosBadgeLabel(sos){
+  if(!sos||sos===0) return null;
+  if(sos >= 1.03) return {txt:'Tabela difícil', cor:'#388bfd'};
+  if(sos >= 1.01) return {txt:'Lev. difícil',   cor:'#85b7eb'};
+  if(sos >= 0.99) return {txt:'Normal',          cor:'#6e7d8f'};
+  if(sos >= 0.97) return {txt:'Lev. fácil',      cor:'#f5c842'};
+  return                  {txt:'Tabela fácil',   cor:'#f85149'};
+}
+
+function calcRTM(p){
+  if(!p) return null;
+
+  // ── Prioridade 1: Z_adj pré-calculados pelo notebook (com SOS) ──
+  // ── Prioridade 2: cálculo interno em tempo real (sem SOS)       ──
+  var temZAdj = p.z_gols_home_adj !== null && p.z_gols_home_adj !== undefined && p.z_gols_home_adj !== 0;
+
+  var z = {
+    xg_home:   temZAdj ? (p.z_xg_home   || calcZ(p.xg_home_n10||0,   RTM_PARAMS.xg_home.mu,   RTM_PARAMS.xg_home.sigma))
+                       : calcZ(p.xg_home_n10||0,   RTM_PARAMS.xg_home.mu,   RTM_PARAMS.xg_home.sigma),
+    xg_away:   temZAdj ? (p.z_xg_away   || calcZ(p.xg_away_n10||0,   RTM_PARAMS.xg_away.mu,   RTM_PARAMS.xg_away.sigma))
+                       : calcZ(p.xg_away_n10||0,   RTM_PARAMS.xg_away.mu,   RTM_PARAMS.xg_away.sigma),
+    gols_home: temZAdj ? (p.z_gols_home || calcZ(p.gols_marc_home||0, RTM_PARAMS.gols_home.mu, RTM_PARAMS.gols_home.sigma))
+                       : calcZ(p.gols_marc_home||0, RTM_PARAMS.gols_home.mu, RTM_PARAMS.gols_home.sigma),
+    gols_away: temZAdj ? (p.z_gols_away || calcZ(p.gols_marc_away||0, RTM_PARAMS.gols_away.mu, RTM_PARAMS.gols_away.sigma))
+                       : calcZ(p.gols_marc_away||0, RTM_PARAMS.gols_away.mu, RTM_PARAMS.gols_away.sigma),
+    vit_home:  temZAdj ? (p.z_vit_home  || calcZ(p.pct_vit_home||0,   RTM_PARAMS.vit_home.mu,  RTM_PARAMS.vit_home.sigma))
+                       : calcZ(p.pct_vit_home||0,   RTM_PARAMS.vit_home.mu,  RTM_PARAMS.vit_home.sigma),
+    vit_away:  temZAdj ? (p.z_vit_away  || calcZ(p.pct_vit_away||0,   RTM_PARAMS.vit_away.mu,  RTM_PARAMS.vit_away.sigma))
+                       : calcZ(p.pct_vit_away||0,   RTM_PARAMS.vit_away.mu,  RTM_PARAMS.vit_away.sigma),
+    // Z ajustados por SOS (nulos se CSV sem SOS)
+    xg_home_adj:   p.z_xg_home_adj   || null,
+    xg_away_adj:   p.z_xg_away_adj   || null,
+    gols_home_adj: p.z_gols_home_adj || null,
+    gols_away_adj: p.z_gols_away_adj || null,
+    vit_home_adj:  p.z_vit_home_adj  || null,
+    vit_away_adj:  p.z_vit_away_adj  || null,
+  };
+
+  // Regressão esperada (shrinkage)
+  var reg = {
+    xg_home:   RTM_ALPHA*(p.xg_home_n10||0)   + (1-RTM_ALPHA)*RTM_PARAMS.xg_home.mu,
+    xg_away:   RTM_ALPHA*(p.xg_away_n10||0)   + (1-RTM_ALPHA)*RTM_PARAMS.xg_away.mu,
+    gols_home: RTM_ALPHA*(p.gols_marc_home||0) + (1-RTM_ALPHA)*RTM_PARAMS.gols_home.mu,
+    gols_away: RTM_ALPHA*(p.gols_marc_away||0) + (1-RTM_ALPHA)*RTM_PARAMS.gols_away.mu,
+  };
+
+  // SOS disponível?
+  var sos_home = p.sos_home_norm || null;
+  var sos_away = p.sos_away_norm || null;
+  var temSOS   = sos_home !== null && sos_home > 0;
+
+  // Usar Z_adj quando disponível para definir alertas (mais preciso)
+  var zGolsH = z.gols_home_adj !== null ? z.gols_home_adj : z.gols_home;
+  var zGolsA = z.gols_away_adj !== null ? z.gols_away_adj : z.gols_away;
+  var zXgH   = z.xg_home_adj   !== null ? z.xg_home_adj   : z.xg_home;
+  var zXgA   = z.xg_away_adj   !== null ? z.xg_away_adj   : z.xg_away;
+  var zVitH  = z.vit_home_adj  !== null ? z.vit_home_adj  : z.vit_home;
+  var zVitA  = z.vit_away_adj  !== null ? z.vit_away_adj  : z.vit_away;
+
+  var sosSufH = temSOS ? ' (SOS '+(sos_home>=1.0?'+':'')+((sos_home-1)*100).toFixed(1)+'%)' : '';
+  var sosSufA = temSOS ? ' (SOS '+(sos_away>=1.0?'+':'')+((sos_away-1)*100).toFixed(1)+'%)' : '';
+
+  var alertas = [];
+  if(zGolsH >  1.5) alertas.push({merc:'ov25',dir:'down',msg:'Casa marcando '+Math.abs(zGolsH).toFixed(2)+'σ acima'+sosSufH+' — Over/BTTS podem estar inflados'});
+  if(zGolsA >  1.5) alertas.push({merc:'btts',dir:'down',msg:'Fora marcando '+Math.abs(zGolsA).toFixed(2)+'σ acima'+sosSufA+' — BTTS pode estar inflado'});
+  if(zGolsH < -1.5) alertas.push({merc:'ov25',dir:'up',  msg:'Casa marcando '+Math.abs(zGolsH).toFixed(2)+'σ abaixo'+sosSufH+' — possível recuperação ofensiva'});
+  if(zGolsA < -1.5) alertas.push({merc:'btts',dir:'up',  msg:'Fora marcando '+Math.abs(zGolsA).toFixed(2)+'σ abaixo'+sosSufA+' — possível recuperação'});
+  if(zXgH   >  1.5) alertas.push({merc:'bc',  dir:'down',msg:'xG casa '+Math.abs(zXgH).toFixed(2)+'σ acima'+sosSufH+' — forma recente pode estar inflada'});
+  if(zXgA   >  1.5) alertas.push({merc:'bf',  dir:'down',msg:'xG fora '+Math.abs(zXgA).toFixed(2)+'σ acima'+sosSufA+' — forma recente pode estar inflada'});
+  if(zVitH  >  1.8) alertas.push({merc:'bc',  dir:'down',msg:'Vit% casa '+Math.abs(zVitH).toFixed(2)+'σ acima'+sosSufH+' — odd de casa possivelmente curta demais'});
+  if(zVitA  >  1.8) alertas.push({merc:'bf',  dir:'down',msg:'Vit% fora '+Math.abs(zVitA).toFixed(2)+'σ acima'+sosSufA+' — odd de fora possivelmente curta demais'});
+
+  var maxZAdj = Math.max(Math.abs(zGolsH),Math.abs(zGolsA),Math.abs(zXgH),Math.abs(zXgA),Math.abs(zVitH),Math.abs(zVitA));
+  var nivel = maxZAdj >= 2.0 ? 'alto' : maxZAdj >= 1.5 ? 'medio' : 'ok';
+
+  return { z:z, reg:reg, alertas:alertas, nivel:nivel, maxZ:maxZAdj,
+           sos_home:sos_home, sos_away:sos_away, temSOS:temSOS, temZAdj:temZAdj };
+}
+
+function rtmBadge(nivel){
+  if(nivel==='ok') return '';
+  var cor = nivel==='alto' ? '#f85149' : '#f5c842';
+  var txt = nivel==='alto' ? 'RTM ALTO' : 'RTM';
+  return '<span style="font-size:9px;font-weight:900;padding:1px 6px;border-radius:4px;background:'+cor+'22;border:1px solid '+cor+'66;color:'+cor+';margin-left:6px">'+txt+'</span>';
+}
+
+// ════════════════════════════════════════════════════════════
 // ESTADO GLOBAL
 // ════════════════════════════════════════════════════════════
 var partidas = [];
@@ -802,6 +905,32 @@ function normalizar(raw){
       res_home:     toN(gv(r,m,'res_home','score_home')),
       res_away:     toN(gv(r,m,'res_away','score_away')),
       fixture_id:   gv(r,m,'fixture_id')||'',
+      xg_home_n10:  toN(gv(r,m,'xg_home_n10')),
+      xg_away_n10:  toN(gv(r,m,'xg_away_n10')),
+      gols_marc_home: toN(gv(r,m,'gols_marc_home')),
+      gols_marc_away: toN(gv(r,m,'gols_marc_away')),
+      pct_vit_home: toN(gv(r,m,'pct_vit_home')),
+      pct_vit_away: toN(gv(r,m,'pct_vit_away')),
+      // ── SOS (Strength of Schedule) ──────────────────────
+      sos_home_norm: toN(gv(r,m,'sos_home_norm'))||null,
+      sos_home_raw:  toN(gv(r,m,'sos_home_raw'))||null,
+      sos_home_n:    toN(gv(r,m,'sos_home_n'))||0,
+      sos_away_norm: toN(gv(r,m,'sos_away_norm'))||null,
+      sos_away_raw:  toN(gv(r,m,'sos_away_raw'))||null,
+      sos_away_n:    toN(gv(r,m,'sos_away_n'))||0,
+      // ── Z-Scores pré-calculados (com ajuste SOS) ────────
+      z_gols_home:     toN(gv(r,m,'z_gols_home'))||null,
+      z_gols_home_adj: toN(gv(r,m,'z_gols_home_adj'))||null,
+      z_gols_away:     toN(gv(r,m,'z_gols_away'))||null,
+      z_gols_away_adj: toN(gv(r,m,'z_gols_away_adj'))||null,
+      z_xg_home:       toN(gv(r,m,'z_xg_home'))||null,
+      z_xg_home_adj:   toN(gv(r,m,'z_xg_home_adj'))||null,
+      z_xg_away:       toN(gv(r,m,'z_xg_away'))||null,
+      z_xg_away_adj:   toN(gv(r,m,'z_xg_away_adj'))||null,
+      z_vit_home:      toN(gv(r,m,'z_vit_home'))||null,
+      z_vit_home_adj:  toN(gv(r,m,'z_vit_home_adj'))||null,
+      z_vit_away:      toN(gv(r,m,'z_vit_away'))||null,
+      z_vit_away_adj:  toN(gv(r,m,'z_vit_away_adj'))||null,
     };
   });
 }
@@ -1125,6 +1254,7 @@ function renderCard(p){
   var ci  = getConfiancaInfo(p);
   var mi  = getMercadoInfo(p);
   var ev  = getMelhorEV(p);
+  var rtm = calcRTM(p);
   var vca = getVPct(p.v_ca);
   var vfo = getVPct(p.v_fo);
   var tot = vca+vfo||1;
@@ -1152,6 +1282,7 @@ function renderCard(p){
       '<div class="card-hora">'+esc(p.hora||'—')+'</div>'+
       '<div class="card-liga">'+esc(p.liga)+'</div>'+
       '<div class="card-conf '+ci.cls+'">'+ci.label+'</div>'+
+      (rtm&&rtm.nivel!=='ok'?rtmBadge(rtm.nivel):'')+
     '</div>'+
     '<div class="card-body">'+
       '<div class="teams-row">'+
@@ -1395,6 +1526,107 @@ function renderDetalhe(p){
     if(sFT.pctCa>0) html+='<div style="background:var(--bg3);border-radius:6px;padding:5px 10px;border:1px solid var(--border)"><span style="color:var(--blue)">'+esc(p.casa)+'</span> <span style="font-family:var(--font-mono);color:var(--yellow)">'+sFT.pctCa.toFixed(0)+'%</span> avg <span style="font-family:var(--font-mono)">'+sFT.avgCa.toFixed(0)+'m</span></div>';
     if(sFT.pctFo>0) html+='<div style="background:var(--bg3);border-radius:6px;padding:5px 10px;border:1px solid var(--border)"><span style="color:var(--red)">'+esc(p.fora)+'</span> <span style="font-family:var(--font-mono);color:var(--yellow)">'+sFT.pctFo.toFixed(0)+'%</span> avg <span style="font-family:var(--font-mono)">'+sFT.avgFo.toFixed(0)+'m</span></div>';
     html+='</div></div></div>';
+  }
+
+  // ── REGRESSÃO À MÉDIA + SOS ──────────────────────────────
+  var rtm = calcRTM(p);
+  if(rtm){
+    var corNivel = rtm.nivel==='alto' ? '#f85149' : rtm.nivel==='medio' ? '#f5c842' : '#00e5a0';
+    var bgNivel  = rtm.nivel==='alto' ? 'rgba(248,81,73,.06)' : rtm.nivel==='medio' ? 'rgba(245,200,66,.06)' : 'rgba(0,229,160,.04)';
+    html += '<div class="detail-section">';
+    html += '<div class="detail-section-title">📉 Regressão à Média + SOS';
+    html += ' <span style="font-size:10px;font-weight:700;padding:1px 8px;border-radius:4px;background:'+corNivel+'22;border:1px solid '+corNivel+'55;color:'+corNivel+';margin-left:4px">'+(rtm.nivel==='alto'?'ALERTA ALTO':rtm.nivel==='medio'?'ALERTA MÉDIO':'NA MÉDIA')+'</span>';
+    if(rtm.temSOS)  html += ' <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(56,139,253,.15);border:1px solid rgba(56,139,253,.3);color:#388bfd;margin-left:4px">SOS ativo</span>';
+    if(rtm.temZAdj) html += ' <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(188,140,255,.15);border:1px solid rgba(188,140,255,.3);color:#bc8cff;margin-left:4px">Z ajustado</span>';
+    html += '</div>';
+    html += '<div style="background:'+bgNivel+';border:1px solid '+corNivel+'44;border-radius:12px;padding:14px;margin-bottom:10px">';
+
+    // ── Bloco SOS quando disponível ──
+    if(rtm.temSOS){
+      var sbH = sosBadgeLabel(rtm.sos_home); var sbA = sosBadgeLabel(rtm.sos_away);
+      var sosBarH = rtm.sos_home ? Math.min(100, Math.max(0, (rtm.sos_home - 0.95) / 0.10 * 100)) : 50;
+      var sosBarA = rtm.sos_away ? Math.min(100, Math.max(0, (rtm.sos_away - 0.95) / 0.10 * 100)) : 50;
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">';
+      // SOS casa
+      html += '<div style="background:#0d1117;border:1px solid #1e2d3d;border-radius:8px;padding:10px">';
+      html += '<div style="font-size:9px;color:#6e7d8f;font-weight:700;margin-bottom:4px">SOS — '+esc(p.casa)+'</div>';
+      html += '<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px">';
+      html += '<span style="font-size:20px;font-weight:900;font-family:var(--font-mono);color:'+(sbH?sbH.cor:'#6e7d8f')+'">'+rtm.sos_home.toFixed(4)+'</span>';
+      if(sbH) html += '<span style="font-size:10px;font-weight:700;color:'+sbH.cor+'">'+sbH.txt+'</span>';
+      html += '</div>';
+      html += '<div style="height:4px;background:#1e2d3d;border-radius:2px"><div style="width:'+sosBarH+'%;height:4px;background:'+(sbH?sbH.cor:'#6e7d8f')+';border-radius:2px"></div></div>';
+      html += '<div style="font-size:9px;color:#6e7d8f;margin-top:3px">ELO adv.: '+(p.sos_home_raw||0).toFixed(0)+' | N='+p.sos_home_n+'</div>';
+      html += '</div>';
+      // SOS fora
+      html += '<div style="background:#0d1117;border:1px solid #1e2d3d;border-radius:8px;padding:10px">';
+      html += '<div style="font-size:9px;color:#6e7d8f;font-weight:700;margin-bottom:4px">SOS — '+esc(p.fora)+'</div>';
+      html += '<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px">';
+      html += '<span style="font-size:20px;font-weight:900;font-family:var(--font-mono);color:'+(sbA?sbA.cor:'#6e7d8f')+'">'+rtm.sos_away.toFixed(4)+'</span>';
+      if(sbA) html += '<span style="font-size:10px;font-weight:700;color:'+sbA.cor+'">'+sbA.txt+'</span>';
+      html += '</div>';
+      html += '<div style="height:4px;background:#1e2d3d;border-radius:2px"><div style="width:'+sosBarA+'%;height:4px;background:'+(sbA?sbA.cor:'#6e7d8f')+';border-radius:2px"></div></div>';
+      html += '<div style="font-size:9px;color:#6e7d8f;margin-top:3px">ELO adv.: '+(p.sos_away_raw||0).toFixed(0)+' | N='+p.sos_away_n+'</div>';
+      html += '</div>';
+      html += '</div>';
+    }
+
+    // ── Grid Z-scores (bruto vs adj) ──
+    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">';
+    var zCards = [
+      {lbl:'xG Casa',   z:rtm.z.xg_home,   zadj:rtm.z.xg_home_adj,   obs:(p.xg_home_n10||0).toFixed(2), reg:rtm.reg.xg_home.toFixed(2)},
+      {lbl:'xG Fora',   z:rtm.z.xg_away,   zadj:rtm.z.xg_away_adj,   obs:(p.xg_away_n10||0).toFixed(2), reg:rtm.reg.xg_away.toFixed(2)},
+      {lbl:'Gols Casa', z:rtm.z.gols_home,  zadj:rtm.z.gols_home_adj, obs:(p.gols_marc_home||0).toFixed(1), reg:rtm.reg.gols_home.toFixed(2)},
+      {lbl:'Gols Fora', z:rtm.z.gols_away,  zadj:rtm.z.gols_away_adj, obs:(p.gols_marc_away||0).toFixed(1), reg:rtm.reg.gols_away.toFixed(2)},
+      {lbl:'Vit% Casa', z:rtm.z.vit_home,   zadj:rtm.z.vit_home_adj,  obs:((p.pct_vit_home||0)*100).toFixed(0)+'%', reg:null},
+      {lbl:'Vit% Fora', z:rtm.z.vit_away,   zadj:rtm.z.vit_away_adj,  obs:((p.pct_vit_away||0)*100).toFixed(0)+'%', reg:null},
+    ];
+    zCards.forEach(function(zc){
+      // Usar Z_adj para cor quando disponível (mais preciso)
+      var zShow  = zc.zadj !== null ? zc.zadj : zc.z;
+      var absZ   = Math.abs(zShow);
+      var corZ   = absZ>=2.0?'#f85149':absZ>=1.5?'#f5c842':absZ>=1.0?'#388bfd':'#6e7d8f';
+      var sinal  = zShow>=0?'+':'';
+      var temAdj = zc.zadj !== null && zc.zadj !== undefined;
+      html += '<div style="background:#0d1117;border:1px solid #1e2d3d;border-radius:8px;padding:8px;text-align:center">';
+      html += '<div style="font-size:9px;color:#6e7d8f;font-weight:700;margin-bottom:3px">'+zc.lbl+'</div>';
+      // Z principal (ajustado se disponível)
+      html += '<div style="font-size:18px;font-weight:900;font-family:var(--font-mono);color:'+corZ+'">'+sinal+zShow.toFixed(2)+'<span style="font-size:10px;color:#6e7d8f">σ</span></div>';
+      // Z bruto secundário (só quando diferente do adj)
+      if(temAdj && Math.abs(zc.z - zShow) > 0.01){
+        var sinalB = zc.z>=0?'+':'';
+        html += '<div style="font-size:9px;color:#4a5568;margin-top:1px">bruto: '+sinalB+zc.z.toFixed(2)+'σ</div>';
+      }
+      html += '<div style="font-size:10px;color:#6e7d8f;margin-top:2px">obs: '+zc.obs;
+      if(zc.reg) html += ' → <span style="color:#00e5a0">'+zc.reg+'</span>';
+      html += '</div></div>';
+    });
+    html += '</div>';
+
+    // ── Alertas ou confirmação ──
+    if(rtm.alertas.length>0){
+      html += '<div style="font-size:10px;font-weight:700;color:#6e7d8f;letter-spacing:1px;margin-bottom:6px">ALERTAS</div>';
+      rtm.alertas.forEach(function(a){
+        var ic = a.dir==='down' ? '⬇' : '⬆';
+        var bc = a.dir==='down' ? 'rgba(248,81,73,.1)' : 'rgba(0,229,160,.1)';
+        var fc = a.dir==='down' ? '#f85149' : '#00e5a0';
+        html += '<div style="display:flex;align-items:flex-start;gap:7px;padding:6px 8px;border-radius:6px;background:'+bc+';margin-bottom:4px;border:1px solid '+fc+'33">';
+        html += '<span style="color:'+fc+';font-size:12px;flex-shrink:0">'+ic+'</span>';
+        html += '<span style="font-size:11px;color:'+fc+'">'+a.msg+'</span>';
+        html += '</div>';
+      });
+    } else {
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;background:rgba(0,229,160,.07);border:1px solid rgba(0,229,160,.2)">';
+      html += '<span style="color:#00e5a0;font-size:13px">✓</span>';
+      html += '<span style="font-size:11px;color:#00e5a0">Todas as métricas dentro do intervalo normal — sem pressão de regressão</span>';
+      html += '</div>';
+    }
+
+    // ── Rodapé: Z máximo + fonte ──
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid #1e2d3d">';
+    html += '<span style="font-size:10px;color:#6e7d8f">'+(rtm.temZAdj?'Z ajustado por SOS':'Z sem ajuste SOS')+'</span>';
+    html += '<span style="font-size:14px;font-weight:900;font-family:var(--font-mono);color:'+corNivel+'">|Z|='+rtm.maxZ.toFixed(2)+'σ</span>';
+    html += '</div>';
+    html += '</div></div>';
   }
 
   // EV principal
