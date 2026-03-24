@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <title>FULLBETS — 2026-03-21</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <style>
@@ -2210,6 +2213,14 @@ function popularFiltrosDatas(){
 }
 document.addEventListener('keydown',function(e){if(e.key==='Escape')fecharDetalhe();});
 
+// ── ANTI-BFCACHE: força reload completo ao restaurar do cache do browser ──
+window.addEventListener('pageshow', function(e){
+  if(e.persisted){
+    // Página foi restaurada do bfcache — recarregar para buscar dados frescos
+    window.location.reload(true);
+  }
+});
+
 // ════════════════════════════════════════════════════════════
 // SCORE OVER HT 5-35min e OVER FT 70+
 // ════════════════════════════════════════════════════════════
@@ -2305,6 +2316,9 @@ document.addEventListener('DOMContentLoaded', function(){
 
   // Cache-busting: ignora cache do GitHub Pages (max-age=600)
   var CB = '?t=' + Date.now();
+  // Resetar estado para evitar dados sujos de carregamentos anteriores
+  partidas = []; perfilGol = {}; perfilM60 = {}; perfilOU = {}; baseHistorica = {};
+  temPerfilGol = false; temPerfilM60 = false; temPerfilOU = false; temBase = false;
 
   // Mostrar indicador de carregamento
   var sub = document.querySelector('.upload-sub');
