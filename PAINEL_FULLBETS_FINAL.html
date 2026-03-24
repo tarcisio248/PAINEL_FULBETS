@@ -2258,40 +2258,37 @@ document.addEventListener('DOMContentLoaded', function(){
     return window.location.origin + p;
   })();
 
-  var csvs = [
-    { url: BASE + 'rodada_atual_sos_v3.csv',                   fn: carregarJogos        },
-    { url: BASE + '0_PAINEL_EVOLUTION_JOGOS_MOMENTO_1GOL_API.csv', fn: carregarPerfilGol    },
-    { url: BASE + '0_PAINEL_EVOLUTION_JOGOS_GOLS_M60_API.csv', fn: carregarPerfilM60    },
-    { url: BASE + '0_PAINEL_PERFIL_OVER_UNDER.csv',            fn: carregarPerfilOU     },
-    { url: BASE + 'base_historica_v3.csv',                     fn: carregarBaseHistorica}
-  ];
-
-  var loaded = 0;
-  var total  = csvs.length;
-
   // Mostrar indicador de carregamento na tela de upload
   var sub = document.querySelector('.upload-sub');
   if(sub) sub.textContent = 'Carregando dados automaticamente…';
 
-  csvs.forEach(function(c){
-    fetch(c.url)
-      .then(function(r){
-        if(!r.ok) throw new Error('HTTP '+r.status+' — '+c.url);
-        return r.text();
-      })
-      .then(function(txt){
-        c.fn(txt, c.url.split('/').pop());
-        loaded++;
-        if(loaded === total) iniciarDash();
-      })
-      .catch(function(err){
-        console.warn('[AUTOLOAD] Falha em '+c.url+':', err.message);
-        loaded++;
-        // Mesmo com falha nos opcionais, inicia se jogos já carregaram
-        if(loaded === total && typeof partidas !== 'undefined' && partidas && partidas.length > 0){
-          iniciarDash();
-        }
-      });
+  var dashIniciado = false;
+  function tentarIniciar(){
+    if(!dashIniciado && typeof partidas !== 'undefined' && partidas && partidas.length > 0){
+      dashIniciado = true;
+      iniciarDash();
+    }
+  }
+
+  // 1. CSV PRINCIPAL — inicia o dash assim que carregar
+  fetch(BASE + 'rodada_atual_sos_v3.csv')
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
+    .then(function(txt){ carregarJogos(txt, 'rodada_atual_sos_v3.csv'); tentarIniciar(); })
+    .catch(function(e){ console.warn('[AUTOLOAD] rodada_atual_sos_v3.csv:', e.message); });
+
+  // 2. CSVs OPCIONAIS — carregam em paralelo, enriquecem sem travar
+  var opcionais = [
+    { nome: '0_PAINEL_EVOLUTION_JOGOS_MOMENTO_1GOL_API.csv', fn: carregarPerfilGol     },
+    { nome: '0_PAINEL_EVOLUTION_JOGOS_GOLS_M60_API.csv',     fn: carregarPerfilM60     },
+    { nome: '0_PAINEL_PERFIL_OVER_UNDER.csv',                fn: carregarPerfilOU      },
+    { nome: 'base_historica_v3.csv',                         fn: carregarBaseHistorica }
+  ];
+
+  opcionais.forEach(function(c){
+    fetch(BASE + c.nome)
+      .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
+      .then(function(txt){ c.fn(txt, c.nome); })
+      .catch(function(e){ console.warn('[AUTOLOAD] '+c.nome+':', e.message); });
   });
 });
 </script>
