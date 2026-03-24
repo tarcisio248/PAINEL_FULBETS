@@ -878,12 +878,12 @@ function normalizar(raw){
       data = partes[0]||'';
       hora = partes[1]||'';
     } else {
-      // Tentar extrair de date_unix — usa UTC para evitar shift de fuso horário (ex: UTC-3)
+      // Tentar extrair de date_unix
       var unix = parseFloat(gv(r,m,'date_unix','date','unix')||0);
       if(unix > 0){
         var dt = new Date(unix * 1000);
-        data = dt.getUTCFullYear()+'-'+String(dt.getUTCMonth()+1).padStart(2,'0')+'-'+String(dt.getUTCDate()).padStart(2,'0');
-        hora = String(dt.getUTCHours()).padStart(2,'0')+':'+String(dt.getUTCMinutes()).padStart(2,'0');
+        data = dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+        hora = String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
       }
     }
 
@@ -1073,12 +1073,10 @@ function enriquecerComBase(){
 // ════════════════════════════════════════════════════════════
 function iniciarDash(){
   irPara('page-jogos');
-  popularFiltrosDatas();   // sempre repopular antes de renderizar
   renderTopbar();
   renderLista();
   atualizarBadges();
-  // garantir que o filtro "Todas as datas" esteja ativo ao iniciar
-  setFiltroData('todas');
+  popularFiltrosDatas();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -2161,19 +2159,9 @@ function popularFiltrosDatas(){
     btn.className = 'date-filter-btn';
     btn.setAttribute('data-df', d);
     btn.innerHTML = fmt+' <span style="opacity:.5">('+n+')</span>';
-    // marcar visualmente se este filtro já está ativo
-    if(dataFiltroAtiva === d){
-      btn.style.borderColor = '#00e5ff';
-      btn.style.color = '#00e5ff';
-      btn.style.background = 'rgba(0,229,255,.1)';
-    }
     btn.addEventListener('click', function(){ setFiltroData(d); });
     grid.appendChild(btn);
   });
-  // resetar filtro se a data ativa não existe mais nas novas partidas
-  if(dataFiltroAtiva !== 'todas' && datas.indexOf(dataFiltroAtiva) === -1){
-    dataFiltroAtiva = 'todas';
-  }
 }
 document.addEventListener('keydown',function(e){if(e.key==='Escape')fecharDetalhe();});
 
@@ -2269,6 +2257,8 @@ document.addEventListener('DOMContentLoaded', function(){
     var p = window.location.pathname.replace(/\/[^/]*$/, '/');
     return window.location.origin + p;
   })();
+  // Cache-busting: força o browser ignorar cache do GitHub Pages (max-age=600)
+  var CB = '?t=' + Date.now();
 
   // Mostrar indicador de carregamento na tela de upload
   var sub = document.querySelector('.upload-sub');
@@ -2283,7 +2273,7 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   // 1. CSV PRINCIPAL — inicia o dash assim que carregar
-  fetch(BASE + 'rodada_atual_sos_v3.csv')
+  fetch(BASE + 'rodada_atual_sos_v3.csv' + CB)
     .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
     .then(function(txt){ carregarJogos(txt, 'rodada_atual_sos_v3.csv'); tentarIniciar(); })
     .catch(function(e){ console.warn('[AUTOLOAD] rodada_atual_sos_v3.csv:', e.message); });
@@ -2297,7 +2287,7 @@ document.addEventListener('DOMContentLoaded', function(){
   ];
 
   opcionais.forEach(function(c){
-    fetch(BASE + c.nome)
+    fetch(BASE + c.nome + CB)
       .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
       .then(function(txt){ c.fn(txt, c.nome); })
       .catch(function(e){ console.warn('[AUTOLOAD] '+c.nome+':', e.message); });
