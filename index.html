@@ -907,8 +907,8 @@ function normalizar(raw){
       var unix = parseFloat(gv(r,m,'date_unix','date','unix')||0);
       if(unix > 0){
         var dt = new Date(unix * 1000);
-        data = dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
-        hora = String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
+        data = dt.getUTCFullYear()+'-'+String(dt.getUTCMonth()+1).padStart(2,'0')+'-'+String(dt.getUTCDate()).padStart(2,'0');
+        hora = String(dt.getUTCHours()).padStart(2,'0')+':'+String(dt.getUTCMinutes()).padStart(2,'0');
       }
     }
 
@@ -2175,6 +2175,10 @@ function popularFiltrosDatas(){
   grid.innerHTML = '';
   var datas = partidas.map(function(p){return p.data;}).filter(Boolean);
   datas = datas.filter(function(v,i,a){return a.indexOf(v)===i;}).sort();
+  // Resetar filtro se a data ativa não existe mais nas novas partidas
+  if(dataFiltroAtiva !== 'todas' && datas.indexOf(dataFiltroAtiva) === -1){
+    dataFiltroAtiva = 'todas';
+  }
   datas.forEach(function(d){
     var pts = d.split('-');
     var meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -2184,6 +2188,7 @@ function popularFiltrosDatas(){
     btn.className = 'date-filter-btn';
     btn.setAttribute('data-df', d);
     btn.innerHTML = fmt+' <span style="opacity:.5">('+n+')</span>';
+    if(dataFiltroAtiva === d){ btn.style.borderColor='#00e5ff'; btn.style.color='#00e5ff'; btn.style.background='rgba(0,229,255,.1)'; }
     btn.addEventListener('click', function(){ setFiltroData(d); });
     grid.appendChild(btn);
   });
@@ -2283,40 +2288,39 @@ document.addEventListener('DOMContentLoaded', function(){
     return window.location.origin + p;
   })();
 
-  var csvs = [
-    { url: BASE + 'rodada_atual_sos_v3.csv',                   fn: carregarJogos        },
-    { url: BASE + '0_PAINEL_EVOLUTION_JOGOS_MOMENTO_1GOL_API.csv', fn: carregarPerfilGol    },
-    { url: BASE + '0_PAINEL_EVOLUTION_JOGOS_GOLS_M60_API.csv', fn: carregarPerfilM60    },
-    { url: BASE + '0_PAINEL_PERFIL_OVER_UNDER.csv',            fn: carregarPerfilOU     },
-    { url: BASE + 'base_historica_v3.csv',                     fn: carregarBaseHistorica}
-  ];
+  // Cache-busting: ignora cache do GitHub Pages (max-age=600)
+  var CB = '?t=' + Date.now();
 
-  var loaded = 0;
-  var total  = csvs.length;
-
-  // Mostrar indicador de carregamento na tela de upload
+  // Mostrar indicador de carregamento
   var sub = document.querySelector('.upload-sub');
   if(sub) sub.textContent = 'Carregando dados automaticamente…';
 
-  csvs.forEach(function(c){
-    fetch(c.url)
-      .then(function(r){
-        if(!r.ok) throw new Error('HTTP '+r.status+' — '+c.url);
-        return r.text();
-      })
-      .then(function(txt){
-        c.fn(txt, c.url.split('/').pop());
-        loaded++;
-        if(loaded === total) iniciarDash();
-      })
-      .catch(function(err){
-        console.warn('[AUTOLOAD] Falha em '+c.url+':', err.message);
-        loaded++;
-        // Mesmo com falha nos opcionais, inicia se jogos já carregaram
-        if(loaded === total && typeof partidas !== 'undefined' && partidas && partidas.length > 0){
-          iniciarDash();
-        }
-      });
+  var dashIniciado = false;
+  function tentarIniciar(){
+    if(!dashIniciado && typeof partidas !== 'undefined' && partidas && partidas.length > 0){
+      dashIniciado = true;
+      iniciarDash();
+    }
+  }
+
+  // 1. CSV PRINCIPAL — inicia o dash assim que carregar
+  fetch(BASE + 'rodada_atual_sos_v3.csv' + CB)
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
+    .then(function(txt){ carregarJogos(txt, 'rodada_atual_sos_v3.csv'); tentarIniciar(); })
+    .catch(function(e){ console.warn('[AUTOLOAD] rodada_atual_sos_v3.csv:', e.message); });
+
+  // 2. CSVs OPCIONAIS — carregam em paralelo, enriquecem sem travar
+  var opcionais = [
+    { nome: '0_PAINEL_EVOLUTION_JOGOS_MOMENTO_1GOL_API.csv', fn: carregarPerfilGol     },
+    { nome: '0_PAINEL_EVOLUTION_JOGOS_GOLS_M60_API.csv',     fn: carregarPerfilM60     },
+    { nome: '0_PAINEL_PERFIL_OVER_UNDER.csv',                fn: carregarPerfilOU      },
+    { nome: 'base_historica_v3.csv',                         fn: carregarBaseHistorica }
+  ];
+  opcionais.forEach(function(c){
+    fetch(BASE + c.nome + CB)
+      .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
+      .then(function(txt){ c.fn(txt, c.nome); })
+      .catch(function(e){ console.warn('[AUTOLOAD] '+c.nome+':', e.message); });
   });
 });
 </script>
