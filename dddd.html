@@ -1027,7 +1027,7 @@ function carregarJogos(txt, nome){
   ok.classList.add('show');
   document.getElementById('dz1').classList.add('loaded');
   document.getElementById('btn-continuar').disabled = false;
-  // popularFiltrosDatas() será chamada pelo iniciarDash()
+  popularFiltrosDatas();
 }
 
 function carregarPerfilGol(txt, nome){
@@ -1068,19 +1068,6 @@ function carregarBaseHistorica(txt, nome){
   document.getElementById('dz5').classList.add('loaded');
 }
 
-var _reRenderTimer = null;
-function _agendarReRender(){
-  // Debounce: aguarda 80ms para agrupar múltiplos eventos simultâneos
-  clearTimeout(_reRenderTimer);
-  _reRenderTimer = setTimeout(function(){
-    if(typeof partidas !== 'undefined' && partidas && partidas.length > 0){
-      renderTopbar();
-      renderLista();
-      atualizarBadges();
-    }
-  }, 80);
-}
-
 function enriquecerComBase(){
   partidas.forEach(function(p){
     var chave=((p.liga||'')+'|'+(p.casa||'')+'|'+(p.fora||'')).toLowerCase();
@@ -1104,8 +1091,6 @@ function enriquecerComBase(){
     if(!p.res_home&&tN(b['score_home'])>0) p.res_home=tN(b['score_home']);
     if(!p.res_away) p.res_away=tN(b['score_away']);
   });
-  // Re-renderizar após enriquecer para atualizar badges/contagens corretamente
-  _agendarReRender();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -2314,8 +2299,7 @@ document.addEventListener('DOMContentLoaded', function(){
   function tentarIniciar(){
     if(!dashIniciado && typeof partidas !== 'undefined' && partidas && partidas.length > 0){
       dashIniciado = true;
-      // Pequeno delay para garantir que todos os estados síncronos foram escritos
-      setTimeout(iniciarDash, 50);
+      iniciarDash();
     }
   }
 
