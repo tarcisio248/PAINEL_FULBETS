@@ -746,40 +746,7 @@ function rtmBadge(nivel){
 }
 
 // ════════════════════════════════════════════════════════════
-// ÍNDICE DE LEGITIMIDADE (IL)
-// Detecta Falso Favorito vs Valor Real
-// Baseado em Custo/Valor do Gol (Adriano Duarte / FullTrader)
-// ════════════════════════════════════════════════════════════
-var IL_CONFIG = {
-  // Limiares de classificação
-  VALOR_IL_MIN:    0.65,   // IL acima disso = candidato a Valor Real
-  FALSO_IL_MAX:    0.35,   // IL abaixo disso + mercado favorece = Falso Favorito
-  PROB_MERC_MIN:   0.55,   // prob mercado acima disso = o time é considerado favorito
-  EV_MIN:          0.03,   // EV mínimo para classificar como Valor Real
-  DELTA_MIN:       0.08,   // divergência mínima modelo vs mercado para Potencial
-};
-
-// Cores por classificação
-var IL_CORES = {
-  'VALOR_REAL_CASA':      {cor:'#00e5a0', bg:'rgba(0,229,160,.12)',  icon:'✦'},
-  'VALOR_REAL_FORA':      {cor:'#00e5a0', bg:'rgba(0,229,160,.12)',  icon:'✦'},
-  'FALSO_FAVORITO_CASA':  {cor:'#f85149', bg:'rgba(248,81,73,.12)',  icon:'⚠'},
-  'FALSO_FAVORITO_FORA':  {cor:'#f85149', bg:'rgba(248,81,73,.12)',  icon:'⚠'},
-  'POTENCIAL_CASA':       {cor:'#f5c842', bg:'rgba(245,200,66,.10)', icon:'◆'},
-  'POTENCIAL_FORA':       {cor:'#f5c842', bg:'rgba(245,200,66,.10)', icon:'◆'},
-  'NEUTRO':               {cor:'#6e7d8f', bg:'rgba(110,125,143,.08)',icon:'·'},
-};
-
-function ilBadge(p){
-  var cl = (p.classificacao_il||'').toUpperCase();
-  if(!cl || cl==='NEUTRO' || !IL_CORES[cl]) return '';
-  var cfg = IL_CORES[cl];
-  var txt = cl.replace('_CASA','').replace('_FORA','').replace(/_/g,' ');
-  var lado = cl.endsWith('_CASA') ? ' 🏠' : cl.endsWith('_FORA') ? ' ✈️' : '';
-  return '<span style="font-size:9px;font-weight:900;padding:1px 7px;border-radius:4px;'+
-         'background:'+cfg.bg+';border:1px solid '+cfg.cor+'66;color:'+cfg.cor+';margin-left:6px">'+
-         cfg.icon+' '+txt+lado+'</span>';
-}
+// ESTADO GLOBAL
 // ════════════════════════════════════════════════════════════
 var partidas = [];
 var perfilGol = {}, perfilM60 = {}, perfilOU = {}, baseHistorica = {};
@@ -964,22 +931,6 @@ function normalizar(raw){
       z_vit_home_adj:  toN(gv(r,m,'z_vit_home_adj'))||null,
       z_vit_away:      toN(gv(r,m,'z_vit_away'))||null,
       z_vit_away_adj:  toN(gv(r,m,'z_vit_away_adj'))||null,
-      // ── Índice de Legitimidade (IL) ──────────────────────
-      prob_mercado_casa: toN(gv(r,m,'prob_mercado_casa'))||null,
-      prob_mercado_fora: toN(gv(r,m,'prob_mercado_fora'))||null,
-      gols_home_adj:     toN(gv(r,m,'gols_home_adj'))||null,
-      gols_away_adj:     toN(gv(r,m,'gols_away_adj'))||null,
-      custo_gol_casa:    toN(gv(r,m,'custo_gol_casa'))||null,
-      custo_gol_fora:    toN(gv(r,m,'custo_gol_fora'))||null,
-      valor_gol_casa:    toN(gv(r,m,'valor_gol_casa'))||null,
-      valor_gol_fora:    toN(gv(r,m,'valor_gol_fora'))||null,
-      luck_home:         toN(gv(r,m,'luck_home'))||null,
-      luck_away:         toN(gv(r,m,'luck_away'))||null,
-      delta_bc:          toN(gv(r,m,'delta_bc'))||null,
-      delta_bf:          toN(gv(r,m,'delta_bf'))||null,
-      il_casa:           toN(gv(r,m,'IL_casa','il_casa'))||null,
-      il_fora:           toN(gv(r,m,'IL_fora','il_fora'))||null,
-      classificacao_il:  gv(r,m,'classificacao_IL','classificacao_il')||'',
     };
   });
 }
@@ -1332,7 +1283,6 @@ function renderCard(p){
       '<div class="card-liga">'+esc(p.liga)+'</div>'+
       '<div class="card-conf '+ci.cls+'">'+ci.label+'</div>'+
       (rtm&&rtm.nivel!=='ok'?rtmBadge(rtm.nivel):'')+
-      ilBadge(p)+
     '</div>'+
     '<div class="card-body">'+
       '<div class="teams-row">'+
@@ -1676,123 +1626,6 @@ function renderDetalhe(p){
     html += '<span style="font-size:10px;color:#6e7d8f">'+(rtm.temZAdj?'Z ajustado por SOS':'Z sem ajuste SOS')+'</span>';
     html += '<span style="font-size:14px;font-weight:900;font-family:var(--font-mono);color:'+corNivel+'">|Z|='+rtm.maxZ.toFixed(2)+'σ</span>';
     html += '</div>';
-    html += '</div></div>';
-  }
-
-  // ── ÍNDICE DE LEGITIMIDADE (IL) ──────────────────────────
-  var temIL = p.il_casa !== null && p.il_casa !== undefined && p.il_casa > 0;
-  if(temIL){
-    var cl    = (p.classificacao_il||'NEUTRO').toUpperCase();
-    var cfg   = IL_CORES[cl] || IL_CORES['NEUTRO'];
-    var ilH   = (p.il_casa||0);
-    var ilA   = (p.il_fora||0);
-    var lado  = cl.endsWith('_CASA') ? 'casa' : cl.endsWith('_FORA') ? 'fora' : null;
-    var ilAtivo = lado==='casa' ? ilH : lado==='fora' ? ilA : Math.max(ilH,ilA);
-    var pctBar  = Math.round(ilAtivo * 100);
-
-    html += '<div class="detail-section">';
-    html += '<div class="detail-section-title">🎯 Índice de Legitimidade (IL)';
-    html += ' <span style="font-size:10px;font-weight:700;padding:1px 8px;border-radius:4px;background:'+cfg.bg+';border:1px solid '+cfg.cor+'55;color:'+cfg.cor+';margin-left:4px">'+cfg.icon+' '+(cl.replace('_CASA','').replace('_FORA','').replace(/_/g,' '))+'</span>';
-    html += '</div>';
-    html += '<div style="background:'+cfg.bg+';border:1px solid '+cfg.cor+'44;border-radius:12px;padding:14px;margin-bottom:10px">';
-
-    // ── Grid IL casa e fora ──
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">';
-
-    // Card IL Casa
-    var corILH = ilH>=0.65?'#00e5a0':ilH>=0.50?'#f5c842':ilH>=0.35?'#ff8c42':'#f85149';
-    html += '<div style="background:#0d1117;border:1px solid #1e2d3d;border-radius:8px;padding:10px;text-align:center">';
-    html += '<div style="font-size:9px;color:#6e7d8f;font-weight:700;margin-bottom:4px">IL — '+esc(p.casa)+'</div>';
-    html += '<div style="font-size:28px;font-weight:900;font-family:var(--font-mono);color:'+corILH+';line-height:1">'+(ilH*100).toFixed(0)+'<span style="font-size:11px;color:#6e7d8f">/100</span></div>';
-    html += '<div style="height:4px;background:#1e2d3d;border-radius:2px;margin-top:6px"><div style="width:'+Math.round(ilH*100)+'%;height:4px;background:'+corILH+';border-radius:2px"></div></div>';
-    html += '</div>';
-
-    // Card IL Fora
-    var corILA = ilA>=0.65?'#00e5a0':ilA>=0.50?'#f5c842':ilA>=0.35?'#ff8c42':'#f85149';
-    html += '<div style="background:#0d1117;border:1px solid #1e2d3d;border-radius:8px;padding:10px;text-align:center">';
-    html += '<div style="font-size:9px;color:#6e7d8f;font-weight:700;margin-bottom:4px">IL — '+esc(p.fora)+'</div>';
-    html += '<div style="font-size:28px;font-weight:900;font-family:var(--font-mono);color:'+corILA+';line-height:1">'+(ilA*100).toFixed(0)+'<span style="font-size:11px;color:#6e7d8f">/100</span></div>';
-    html += '<div style="height:4px;background:#1e2d3d;border-radius:2px;margin-top:6px"><div style="width:'+Math.round(ilA*100)+'%;height:4px;background:'+corILA+';border-radius:2px"></div></div>';
-    html += '</div>';
-    html += '</div>';
-
-    // ── Custo e Valor do Gol ──
-    var temCV = p.custo_gol_casa!==null && p.custo_gol_casa!==undefined;
-    if(temCV){
-      html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px">';
-      var cvItems = [
-        {lbl:'Custo Casa', val:(p.custo_gol_casa||0), cor:'#388bfd', tip:'Gols_adj ÷ prob_mercado_casa'},
-        {lbl:'Valor Casa',  val:(p.valor_gol_casa||0),  cor:'#388bfd', tip:'Gols_adj × prob_mercado_fora'},
-        {lbl:'Custo Fora', val:(p.custo_gol_fora||0), cor:'#f85149', tip:'Gols_adj ÷ prob_mercado_fora'},
-        {lbl:'Valor Fora',  val:(p.valor_gol_fora||0),  cor:'#f85149', tip:'Gols_adj × prob_mercado_casa'},
-      ];
-      cvItems.forEach(function(cv){
-        html += '<div style="background:#0d1117;border:1px solid #1e2d3d;border-radius:8px;padding:8px;text-align:center">';
-        html += '<div style="font-size:9px;color:#6e7d8f;font-weight:700;margin-bottom:2px">'+cv.lbl+'</div>';
-        html += '<div style="font-size:16px;font-weight:900;font-family:var(--font-mono);color:'+cv.cor+'">'+cv.val.toFixed(3)+'</div>';
-        html += '</div>';
-      });
-      html += '</div>';
-
-      // ── Luck Factor + Delta ──
-      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px">';
-
-      // Luck home
-      var lkH = p.luck_home||0;
-      var lkHcor = Math.abs(lkH)<0.3?'#00e5a0':Math.abs(lkH)<0.7?'#f5c842':'#f85149';
-      var lkHsinal = lkH>=0?'+':'';
-      html += '<div style="background:#0d1117;border:1px solid #1e2d3d;border-radius:8px;padding:8px">';
-      html += '<div style="font-size:9px;color:#6e7d8f;font-weight:700;margin-bottom:3px">Luck Factor — '+esc(p.casa)+'</div>';
-      html += '<div style="display:flex;align-items:baseline;gap:6px">';
-      html += '<span style="font-size:18px;font-weight:900;font-family:var(--font-mono);color:'+lkHcor+'">'+lkHsinal+lkH.toFixed(2)+'</span>';
-      html += '<span style="font-size:10px;color:#6e7d8f">gols − xG</span>';
-      html += '</div>';
-      html += '<div style="font-size:9px;color:'+lkHcor+';margin-top:2px">'+(Math.abs(lkH)<0.3?'Conversão saudável':Math.abs(lkH)<0.7?'Leve desvio':'Alto desvio de conversão')+'</div>';
-      html += '</div>';
-
-      // Luck away
-      var lkA = p.luck_away||0;
-      var lkAcor = Math.abs(lkA)<0.3?'#00e5a0':Math.abs(lkA)<0.7?'#f5c842':'#f85149';
-      var lkAsinal = lkA>=0?'+':'';
-      html += '<div style="background:#0d1117;border:1px solid #1e2d3d;border-radius:8px;padding:8px">';
-      html += '<div style="font-size:9px;color:#6e7d8f;font-weight:700;margin-bottom:3px">Luck Factor — '+esc(p.fora)+'</div>';
-      html += '<div style="display:flex;align-items:baseline;gap:6px">';
-      html += '<span style="font-size:18px;font-weight:900;font-family:var(--font-mono);color:'+lkAcor+'">'+lkAsinal+lkA.toFixed(2)+'</span>';
-      html += '<span style="font-size:10px;color:#6e7d8f">gols − xG</span>';
-      html += '</div>';
-      html += '<div style="font-size:9px;color:'+lkAcor+';margin-top:2px">'+(Math.abs(lkA)<0.3?'Conversão saudável':Math.abs(lkA)<0.7?'Leve desvio':'Alto desvio de conversão')+'</div>';
-      html += '</div>';
-      html += '</div>';
-
-      // ── Delta Modelo vs Mercado ──
-      var dBC = p.delta_bc||0;
-      var dBF = p.delta_bf||0;
-      var pmC = p.prob_mercado_casa||0;
-      var pmF = p.prob_mercado_fora||0;
-      html += '<div style="background:#111820;border:1px solid #1e2d3d;border-radius:8px;padding:10px;margin-bottom:8px">';
-      html += '<div style="font-size:9px;color:#6e7d8f;font-weight:700;letter-spacing:1px;margin-bottom:8px">DELTA — MODELO vs MERCADO</div>';
-      html += '<div style="display:flex;gap:16px;flex-wrap:wrap">';
-      // Casa
-      var dBCcor = dBC>0.08?'#00e5a0':dBC>0?'#f5c842':dBC<-0.08?'#f85149':'#6e7d8f';
-      html += '<div><div style="font-size:10px;color:#6e7d8f;margin-bottom:2px">'+esc(p.casa)+'</div>';
-      html += '<div style="font-size:13px;font-weight:900;font-family:var(--font-mono);color:'+dBCcor+'">'+(dBC>=0?'+':'')+( dBC*100).toFixed(1)+'%</div>';
-      html += '<div style="font-size:9px;color:#6e7d8f">modelo '+(p.prob_bc||0*100).toFixed&&(p.prob_bc*100).toFixed(1)+'% vs mercado '+(pmC*100).toFixed(1)+'%</div>';
-      html += '</div>';
-      // Fora
-      var dBFcor = dBF>0.08?'#00e5a0':dBF>0?'#f5c842':dBF<-0.08?'#f85149':'#6e7d8f';
-      html += '<div><div style="font-size:10px;color:#6e7d8f;margin-bottom:2px">'+esc(p.fora)+'</div>';
-      html += '<div style="font-size:13px;font-weight:900;font-family:var(--font-mono);color:'+dBFcor+'">'+(dBF>=0?'+':'')+( dBF*100).toFixed(1)+'%</div>';
-      html += '<div style="font-size:9px;color:#6e7d8f">modelo '+(p.prob_bf||0*100).toFixed&&(p.prob_bf*100).toFixed(1)+'% vs mercado '+(pmF*100).toFixed(1)+'%</div>';
-      html += '</div>';
-      html += '</div></div>';
-
-      // Gols ajustados
-      var gHa = p.gols_home_adj||0; var gAa = p.gols_away_adj||0;
-      html += '<div style="display:flex;gap:8px;font-size:11px;color:#6e7d8f;flex-wrap:wrap">';
-      html += '<span style="padding:3px 8px;background:#0d1117;border-radius:5px;border:1px solid #1e2d3d">Gols adj. '+esc(p.casa)+': <span style="color:#388bfd;font-family:var(--font-mono)">'+gHa.toFixed(2)+'</span></span>';
-      html += '<span style="padding:3px 8px;background:#0d1117;border-radius:5px;border:1px solid #1e2d3d">Gols adj. '+esc(p.fora)+': <span style="color:#f85149;font-family:var(--font-mono)">'+gAa.toFixed(2)+'</span></span>';
-      html += '</div>';
-    }
     html += '</div></div>';
   }
 
