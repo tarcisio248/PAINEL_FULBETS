@@ -1123,15 +1123,8 @@ function carregarBaseHistorica(txt, nome){
   document.getElementById('dz5').classList.add('loaded');
 }
 
-var _rrTimer = null;
-function _reRender(){
-  clearTimeout(_rrTimer);
-  _rrTimer = setTimeout(function(){
-    if(partidas && partidas.length > 0){
-      renderTopbar(); renderLista(); atualizarBadges();
-    }
-  }, 100);
-}
+var _rrT=null;
+function _reRender(){clearTimeout(_rrT);_rrT=setTimeout(function(){if(partidas&&partidas.length>0){renderTopbar();renderLista();atualizarBadges();}},120);}
 function enriquecerComBase(){
   partidas.forEach(function(p){
     var chave=((p.liga||'')+'|'+(p.casa||'')+'|'+(p.fora||'')).toLowerCase();
@@ -1155,7 +1148,6 @@ function enriquecerComBase(){
     if(!p.res_home&&tN(b['score_home'])>0) p.res_home=tN(b['score_home']);
     if(!p.res_away) p.res_away=tN(b['score_away']);
   });
-}
   _reRender();
 }
 
@@ -2342,9 +2334,7 @@ function popularFiltrosDatas(){
   grid.innerHTML = '';
   var datas = partidas.map(function(p){return p.data;}).filter(Boolean);
   datas = datas.filter(function(v,i,a){return a.indexOf(v)===i;}).sort();
-  if(dataFiltroAtiva !== 'todas' && datas.indexOf(dataFiltroAtiva) === -1){
-    dataFiltroAtiva = 'todas';
-  }
+  if(dataFiltroAtiva !== 'todas' && datas.indexOf(dataFiltroAtiva) === -1) dataFiltroAtiva = 'todas';
   datas.forEach(function(d){
     var pts = d.split('-');
     var meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -2439,10 +2429,8 @@ function calcScoreOvFT(p){
   return 0.40*scoreA + 0.30*scoreB + 0.20*scoreC + 0.10*scoreD;
 }
 
-// ── ANTI-BFCACHE: força reload se browser restaurar da cache ──
-window.addEventListener('pageshow', function(e){
-  if(e.persisted){ window.location.reload(true); }
-});
+// ── ANTI-BFCACHE: se browser restaurar sessão antiga, recarrega do zero ──
+window.addEventListener('pageshow', function(e){ if(e.persisted) window.location.reload(true); });
 
 document.addEventListener('DOMContentLoaded', function(){
 
@@ -2454,12 +2442,12 @@ document.addEventListener('DOMContentLoaded', function(){
   setupSlot('dz4','fi4',function(f){ lerCSV(f, carregarPerfilOU); });
   setupSlot('dz5','fi5',function(f){ lerCSV(f, carregarBaseHistorica); });
 
-  // Reset total — sessão sempre começa limpa
+  // ── Reset total de estado — sessão sempre começa limpa ──────
   partidas = []; perfilGol = {}; perfilM60 = {}; perfilOU = {};
   baseHistorica = {}; temPerfilGol = false; temPerfilM60 = false;
   temPerfilOU = false; temBase = false; dataFiltroAtiva = 'todas';
 
-  // URL base + cache-busting único por sessão
+  // ── URL base + cache-busting único por carregamento ─────────
   var BASE = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/');
   var CB   = '?t=' + Date.now();
 
@@ -2467,7 +2455,7 @@ document.addEventListener('DOMContentLoaded', function(){
   var sub = document.querySelector('.upload-sub');
   if(sub) sub.textContent = 'Carregando dados automaticamente…';
 
-  // Flag — dash inicia exatamente UMA vez
+  // ── Flag garante que iniciarDash() rode exatamente uma vez ──
   var _ok = false;
   function _iniciar(){
     if(!_ok && partidas && partidas.length > 0){
@@ -2476,13 +2464,13 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   }
 
-  // CSV PRINCIPAL — inicia o dash assim que carregar
+  // ── CSV PRINCIPAL — abre o painel imediatamente ao carregar ─
   fetch(BASE + 'rodada_atual_sos_v3.csv' + CB)
     .then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); })
     .then(function(txt){ carregarJogos(txt, 'rodada_atual_sos_v3.csv'); _iniciar(); })
     .catch(function(e){ console.error('[AUTOLOAD] rodada_atual_sos_v3.csv:', e.message); });
 
-  // CSVs OPCIONAIS — paralelo, enriquecem após o dash abrir
+  // ── CSVs OPCIONAIS — paralelo, enriquecem sem travar ────────
   [
     { nome: '0_PAINEL_EVOLUTION_JOGOS_MOMENTO_1GOL_API.csv', fn: carregarPerfilGol     },
     { nome: '0_PAINEL_EVOLUTION_JOGOS_GOLS_M60_API.csv',     fn: carregarPerfilM60     },
