@@ -1993,18 +1993,24 @@ function renderDetalhe(p){
     html += '<div style="font-size:10px;color:'+srCor+';margin-top:3px;font-weight:700">'+srLbl+'</div>';
     html += '</div>';
 
-    // Barras dos 5 componentes
+    // Barras dos 5 componentes — labels dinâmicos por tipo de mercado
     html += '<div style="flex:1;display:flex;flex-direction:column;gap:6px">';
+    // Subtítulo do contexto
+    var ctxLabel = sr.tipo_merc==='casa' ? '📍 Score referente ao time da CASA'
+                 : sr.tipo_merc==='fora' ? '📍 Score referente ao time de FORA'
+                 : sr.tipo_merc==='jogo' ? '📍 Score referente ao JOGO (bilateral)'
+                 :                         '📍 Score referente ao JOGO — perfil de gol';
+    html += '<div style="font-size:10px;color:#388bfd;margin-bottom:4px;font-style:italic">'+ctxLabel+'</div>';
     var comps = [
-      {lbl:'EV (30%)',    v:sr.c_ev,    cor:'#00e5a0', tip:(sr.ev*100).toFixed(1)+'%'},
-      {lbl:'AUC (20%)',   v:sr.c_auc,   cor:'#388bfd', tip:sr.auc.toFixed(3)+' '+mercNomes[sr.mercado]},
-      {lbl:'IL (20%)',    v:sr.c_il,    cor:'#bc8cff', tip:(sr.c_il*100).toFixed(0)+'/100'},
-      {lbl:'RTM inv (15%)',v:sr.c_rtm,  cor:'#f5c842', tip:'|Z|='+calcRTM(p).maxZ.toFixed(2)+'σ'},
-      {lbl:'Delta (15%)', v:sr.c_delta, cor:'#ff8c42', tip:(sr.c_delta*100).toFixed(0)+'/100'},
+      {lbl:'EV (30%)',                          v:sr.c_ev,    cor:'#00e5a0', tip:(sr.ev*100).toFixed(1)+'%'},
+      {lbl:'AUC (20%)',                         v:sr.c_auc,   cor:'#388bfd', tip:sr.auc.toFixed(3)+' '+mercNomes[sr.mercado]},
+      {lbl:(sr.lbl_il||'IL')+' (20%)',          v:sr.c_il,    cor:'#bc8cff', tip:(sr.c_il*100).toFixed(0)+'/100'},
+      {lbl:'RTM inv (15%)',                     v:sr.c_rtm,   cor:'#f5c842', tip:'|Z|='+calcRTM(p).maxZ.toFixed(2)+'σ'},
+      {lbl:(sr.lbl_delta||'Delta')+' (15%)',    v:sr.c_delta, cor:'#ff8c42', tip:(sr.c_delta*100).toFixed(0)+'/100'},
     ];
     comps.forEach(function(c){
       html += '<div style="display:flex;align-items:center;gap:6px">';
-      html += '<div style="font-size:10px;color:#6e7d8f;min-width:88px">'+c.lbl+'</div>';
+      html += '<div style="font-size:10px;color:#6e7d8f;min-width:104px;white-space:nowrap">'+c.lbl+'</div>';
       html += '<div style="flex:1;height:5px;background:#1e2d3d;border-radius:3px"><div style="width:'+Math.round(c.v*100)+'%;height:5px;background:'+c.cor+';border-radius:3px"></div></div>';
       html += '<div style="font-size:10px;font-family:var(--font-mono);color:'+c.cor+';min-width:56px;text-align:right">'+c.tip+'</div>';
       html += '</div>';
