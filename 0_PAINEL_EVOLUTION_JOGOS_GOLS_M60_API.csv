@@ -64,7 +64,7 @@ Argentina_1 Liga Profesional,Belgrano,5,6,40.0,33.3,80.0,77.5,4.2,14.8,5.3,19.2,
 Argentina_1 Liga Profesional,Boca Juniors,7,4,14.3,75.0,77.0,78.3,,13.2,,16.9,1,3,0.0,25.0,14.3,0.0,0.0,50.0
 Argentina_1 Liga Profesional,Central Córdoba SdE,5,6,40.0,16.7,69.0,78.0,9.9,,14.3,,2,1,20.0,0.0,40.0,16.7,0.0,0.0
 Argentina_1 Liga Profesional,Defensa y Justicia,6,5,33.3,40.0,83.0,63.5,18.4,0.7,22.2,1.1,2,2,16.7,40.0,16.7,20.0,16.7,20.0
-Argentina_1 Liga Profesional,Deportivo Riestra,5,5,0.0,0.0,,,,,,,0,0,0.0,0.0,0.0,0.0,0.0,0.0
+Argentina_1 Liga Profesional,Deportivo Riestra,6,5,0.0,0.0,,,,,,,0,0,0.0,0.0,0.0,0.0,0.0,0.0
 Argentina_1 Liga Profesional,Estudiantes,6,5,33.3,40.0,72.5,73.5,3.5,10.6,4.9,14.4,2,2,16.7,20.0,33.3,0.0,33.3,20.0
 Argentina_1 Liga Profesional,Estudiantes Río Cuarto,5,6,20.0,0.0,94.0,,,,,,1,0,0.0,0.0,0.0,0.0,20.0,0.0
 Argentina_1 Liga Profesional,Gimnasia La Plata,5,6,20.0,0.0,81.0,,,,,,1,0,0.0,0.0,0.0,0.0,40.0,0.0
@@ -79,7 +79,7 @@ Argentina_1 Liga Profesional,Platense,5,6,40.0,33.3,80.5,83.0,7.8,0.0,9.7,0.0,2,
 Argentina_1 Liga Profesional,Racing Club,4,7,50.0,57.1,85.5,76.2,10.6,10.2,12.4,13.4,2,4,0.0,14.3,25.0,14.3,25.0,42.9
 Argentina_1 Liga Profesional,River Plate,4,7,50.0,28.6,80.0,77.5,12.7,10.6,15.9,13.7,2,2,0.0,14.3,25.0,0.0,25.0,28.6
 Argentina_1 Liga Profesional,Rosario Central,5,6,40.0,33.3,77.0,78.0,18.4,4.2,23.9,5.4,2,2,20.0,0.0,0.0,16.7,40.0,16.7
-Argentina_1 Liga Profesional,San Lorenzo,5,5,80.0,40.0,80.5,67.5,10.3,3.5,12.8,5.2,4,2,20.0,40.0,0.0,0.0,80.0,0.0
+Argentina_1 Liga Profesional,San Lorenzo,5,6,80.0,50.0,80.5,71.0,10.3,6.6,12.8,9.2,4,3,20.0,33.3,0.0,16.7,80.0,0.0
 Argentina_1 Liga Profesional,Sarmiento,6,5,16.7,20.0,86.0,69.0,,,,,1,1,0.0,20.0,0.0,0.0,16.7,0.0
 Argentina_1 Liga Profesional,Talleres Córdoba,5,6,60.0,33.3,82.0,80.0,13.5,15.6,16.4,19.4,3,2,20.0,16.7,0.0,0.0,40.0,33.3
 Argentina_1 Liga Profesional,Tigre,6,5,50.0,40.0,70.3,65.0,12.9,4.2,18.3,6.5,3,2,33.3,40.0,0.0,0.0,33.3,0.0
@@ -166,7 +166,7 @@ Chile_1 Primera Division,Universidad Chile,3,4,0.0,50.0,,73.0,,4.2,,5.8,0,2,0.0,
 Chile_1 Primera Division,Unión La Calera,4,3,50.0,0.0,75.5,,4.9,,6.6,,2,0,0.0,0.0,50.0,0.0,75.0,0.0
 Chile_1 Primera Division,Ñublense,4,3,25.0,100.0,88.0,84.3,,9.1,,10.8,1,3,0.0,0.0,0.0,33.3,25.0,66.7
 Colombia_1 Liga BetPlay,Alianza Petrolera,6,6,0.0,33.3,,67.5,,6.4,,9.4,0,2,0.0,16.7,0.0,16.7,0.0,0.0
-Colombia_1 Liga BetPlay,América de Cali,5,6,60.0,0.0,71.7,,4.0,,5.6,,3,0,20.0,0.0,40.0,0.0,20.0,0.0
+Colombia_1 Liga BetPlay,América de Cali,6,6,50.0,0.0,71.7,,4.0,,5.6,,3,0,16.7,0.0,33.3,0.0,16.7,0.0
 Colombia_1 Liga BetPlay,Atlético Bucaramanga,6,6,50.0,16.7,62.7,71.0,2.1,,3.3,,3,1,66.7,0.0,0.0,16.7,16.7,0.0
 Colombia_1 Liga BetPlay,Atlético Nacional,6,6,83.3,50.0,72.2,71.3,6.6,7.4,9.2,10.3,5,3,16.7,33.3,66.7,33.3,16.7,33.3
 Colombia_1 Liga BetPlay,Boyacá Chicó,6,6,16.7,0.0,80.0,,,,,,1,0,0.0,0.0,16.7,0.0,0.0,0.0
@@ -180,7 +180,7 @@ Colombia_1 Liga BetPlay,Independiente Medellín,5,7,60.0,57.1,76.7,77.5,6.8,11.2
 Colombia_1 Liga BetPlay,Jaguares de Córdoba,7,6,57.1,0.0,74.8,,11.6,,15.5,,4,0,28.6,0.0,0.0,0.0,42.9,0.0
 Colombia_1 Liga BetPlay,Junior,7,6,42.9,33.3,92.7,75.0,12.9,11.3,13.9,15.1,3,2,0.0,16.7,14.3,0.0,28.6,33.3
 Colombia_1 Liga BetPlay,La Equidad,6,7,50.0,0.0,75.3,,12.9,,17.1,,3,0,33.3,0.0,16.7,0.0,33.3,0.0
-Colombia_1 Liga BetPlay,Llaneros,7,5,28.6,60.0,73.0,70.7,4.2,11.9,5.8,16.9,2,3,14.3,40.0,14.3,0.0,14.3,20.0
+Colombia_1 Liga BetPlay,Llaneros,7,6,28.6,50.0,73.0,70.7,4.2,11.9,5.8,16.9,2,3,14.3,33.3,14.3,0.0,14.3,16.7
 Colombia_1 Liga BetPlay,Millonarios,7,6,28.6,33.3,73.0,74.5,17.0,0.7,23.2,0.9,2,2,14.3,0.0,0.0,33.3,28.6,16.7
 Colombia_1 Liga BetPlay,Once Caldas,7,6,71.4,66.7,77.8,76.0,13.3,10.6,17.0,13.9,5,4,28.6,16.7,14.3,33.3,42.9,33.3
 Colombia_1 Liga BetPlay,Rionegro Águilas,6,6,33.3,33.3,88.0,76.5,11.3,19.1,12.9,25.0,2,2,0.0,16.7,16.7,0.0,16.7,16.7

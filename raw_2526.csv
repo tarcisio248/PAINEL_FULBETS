@@ -5792,3 +5792,5 @@ fixture_id,league,season_id,date_unix,home_id,away_id,home_team,away_team,score_
 8432027,Colombia_1 Liga BetPlay,16614,1774393200,2131,2139,Junior,Atlético Bucaramanga,2,0,1,0,2.14,2.85,3.75,1.88,2.2,1.42,1.02,1.3,1.48,1.32,10,13,2,5,6,8,1.58,1.73,1
 8432116,Colombia_1 Liga BetPlay,16614,1774400400,2152,2143,Fortaleza CEIF,Deportivo Pasto,1,2,1,1,2.15,3.02,3.25,2.1,2.45,1.53,0.98,1.05,1.31,1.42,7,10,3,4,5,1,1.17,2.0,1
 8432121,Colombia_1 Liga BetPlay,16614,1774384200,2161,2153,Deportivo Pereira,Cúcuta Deportivo,2,2,1,0,2.8,3.1,2.4,2.0,2.22,1.48,1.41,2.29,0.9,0.97,12,18,7,10,7,9,0.45,0.58,1
+8419030,Argentina_1 Liga Profesional,16571,1774476000,754,711,Deportivo Riestra,San Lorenzo,1,1,1,0,2.37,2.6,3.9,2.62,3.6,1.83,1.15,0.96,1.33,1.18,9,7,2,2,2,4,0.6,1.3,1
+8432025,Colombia_1 Liga BetPlay,16614,1774486800,2141,2159,América de Cali,Llaneros,0,0,0,0,1.59,3.85,6.79,2.1,2.1,1.42,3.37,1.34,1.46,1.08,26,9,4,1,13,2,1.82,1.25,0
