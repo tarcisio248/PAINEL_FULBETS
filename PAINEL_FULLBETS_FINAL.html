@@ -811,45 +811,94 @@ var AUC_MERCADO = {
 function calcScoreRef(p){
   if(!p) return null;
 
-  // Detectar mercado principal e EV correspondente
-  var cl_il    = (p.classificacao_il||'').toUpperCase();
-  var isCasa   = cl_il.endsWith('_CASA') || (p.ev_bc||0) >= (p.ev_bf||0);
-  var mercado  = isCasa ? 'bc' : 'bf';
-
-  // Se EV positivo em BTTS/Over, avaliar esses
-  var ev_bc    = p.ev_bc    || p.ev_bc_d2    || 0;
-  var ev_bf    = p.ev_bf    || p.ev_bf_d2    || 0;
-  var ev_btts  = p.ev_btts  || p.ev_btts_d2  || 0;
-  var ev_ov25  = p.ev_over25|| p.ev_over25_d2|| 0;
-  var ev_ovht  = p.ev_o05ht || p.ev_o05ht_d2 || 0;
+  // ── 1. Selecionar melhor mercado pelo EV ─────────────────
+  var ev_bc   = p.ev_bc    || p.ev_bc_d2    || 0;
+  var ev_bf   = p.ev_bf    || p.ev_bf_d2    || 0;
+  var ev_btts = p.ev_btts  || p.ev_btts_d2  || 0;
+  var ev_ov25 = p.ev_over25|| p.ev_over25_d2|| 0;
+  var ev_ovht = p.ev_o05ht || p.ev_o05ht_d2 || 0;
 
   var evs = {bc:ev_bc, bf:ev_bf, btts:ev_btts, ov25:ev_ov25, ovht:ev_ovht};
   var melhor_merc = 'bc'; var melhor_ev = -99;
-  Object.keys(evs).forEach(function(k){ if(evs[k]>melhor_ev){melhor_ev=evs[k];melhor_merc=k;} });
+  Object.keys(evs).forEach(function(k){
+    if(evs[k] > melhor_ev){ melhor_ev = evs[k]; melhor_merc = k; }
+  });
 
   var ev_alvo  = melhor_ev;
   var auc_alvo = AUC_MERCADO[melhor_merc] || 0.51;
-  var il_alvo  = isCasa ? (p.il_casa||0) : (p.il_fora||0);
   var rtm_obj  = calcRTM(p);
   var maxZ     = rtm_obj ? rtm_obj.maxZ : 0;
-  var delta    = isCasa ? (p.delta_bc||0) : (p.delta_bf||0);
 
-  // Normalizar cada componente em [0,1]
-  var c_ev    = Math.min(1, Math.max(0, (ev_alvo + 0.10) / 0.35));  // -10% a +25% → 0 a 1
-  var c_auc   = Math.min(1, Math.max(0, (auc_alvo - 0.50) / 0.20)); // 0.50 a 0.70 → 0 a 1
-  var c_il    = Math.min(1, Math.max(0, il_alvo));                   // já em [0,1]
-  var c_rtm   = Math.min(1, Math.max(0, 1 - maxZ / 3.0));           // Z=0→1, Z=3→0
-  var c_delta = Math.min(1, Math.max(0, (delta + 0.10) / 0.30));    // -10% a +20% → 0 a 1
+  // ── 2. Componentes IL e Delta dependem do tipo de mercado ─
+  //
+  //   Back Casa  → IL_casa  + Delta_bc    (time específico)
+  //   Back Fora  → IL_fora  + Delta_bf    (time específico)
+  //   BTTS/Ov25  → max(IL_casa, IL_fora)  (jogo — pega o melhor)
+  //                max(delta_bc, delta_bf)
+  //   Over HT/FT → Score HT ou M70+ no lugar de IL e Delta
+  //                (mercado de gol puro — IL/Delta não se aplicam)
 
+  var c_il, c_delta, lbl_il, lbl_delta, tipo_merc;
+
+  if(melhor_merc === 'bc'){
+    // Caminho A — casa
+    tipo_merc = 'casa';
+    c_il    = Math.min(1, Math.max(0, p.il_casa||0));
+    c_delta = Math.min(1, Math.max(0, ((p.delta_bc||0) + 0.10) / 0.30));
+    lbl_il    = 'IL Casa';
+    lbl_delta = 'Delta BC';
+
+  } else if(melhor_merc === 'bf'){
+    // Caminho A — fora
+    tipo_merc = 'fora';
+    c_il    = Math.min(1, Math.max(0, p.il_fora||0));
+    c_delta = Math.min(1, Math.max(0, ((p.delta_bf||0) + 0.10) / 0.30));
+    lbl_il    = 'IL Fora';
+    lbl_delta = 'Delta BF';
+
+  } else if(melhor_merc === 'btts' || melhor_merc === 'ov25'){
+    // Caminho B — mercado de jogo bilateral
+    // Usa o melhor IL e maior delta entre os dois times
+    tipo_merc = 'jogo';
+    var il_max    = Math.max(p.il_casa||0, p.il_fora||0);
+    var delta_max = Math.max(p.delta_bc||0, p.delta_bf||0);
+    c_il    = Math.min(1, Math.max(0, il_max));
+    c_delta = Math.min(1, Math.max(0, (delta_max + 0.10) / 0.30));
+    lbl_il    = 'IL max(Casa,Fora)';
+    lbl_delta = 'Delta max';
+
+  } else {
+    // Caminho B — Over HT ou Over FT
+    // IL e Delta não se aplicam — substituir pelo Score HT/FT normalizado
+    tipo_merc = 'gol';
+    var sHT = calcScoreOvHT(p);          // 0–100
+    var sFT = calcScoreOvFT(p);          // 0–100
+    var scoreGol = melhor_merc === 'ovht' ? sHT : sFT;
+    c_il    = Math.min(1, Math.max(0, scoreGol / 100));   // Score HT no lugar do IL
+    c_delta = c_il;                                        // Score FT no lugar do Delta
+    lbl_il    = melhor_merc === 'ovht' ? 'Score HT' : 'Score M70+';
+    lbl_delta = melhor_merc === 'ovht' ? 'Score HT' : 'Score M70+';
+  }
+
+  // ── 3. Normalizar EV e AUC ───────────────────────────────
+  var c_ev  = Math.min(1, Math.max(0, (ev_alvo + 0.10) / 0.35)); // -10% a +25%
+  var c_auc = Math.min(1, Math.max(0, (auc_alvo - 0.50) / 0.20));// 0.50 a 0.70
+  var c_rtm = Math.min(1, Math.max(0, 1 - maxZ / 3.0));          // Z=0→1, Z=3→0
+
+  // ── 4. Score final ───────────────────────────────────────
   var score = (0.30*c_ev + 0.20*c_auc + 0.20*c_il + 0.15*c_rtm + 0.15*c_delta) * 100;
   score = Math.round(Math.min(100, Math.max(0, score)));
 
   var nivel = score >= 65 ? 'alto' : score >= 45 ? 'medio' : 'baixo';
   var cor   = score >= 65 ? '#00e5a0' : score >= 45 ? '#f5c842' : '#f85149';
 
-  return { score:score, nivel:nivel, cor:cor,
-           mercado:melhor_merc, ev:ev_alvo, auc:auc_alvo,
-           c_ev:c_ev, c_auc:c_auc, c_il:c_il, c_rtm:c_rtm, c_delta:c_delta };
+  return {
+    score:score, nivel:nivel, cor:cor,
+    mercado:melhor_merc, tipo_merc:tipo_merc,
+    ev:ev_alvo, auc:auc_alvo,
+    c_ev:c_ev, c_auc:c_auc, c_il:c_il, c_rtm:c_rtm, c_delta:c_delta,
+    lbl_il:lbl_il, lbl_delta:lbl_delta,
+  };
 }
 
 function scoreRefBadge(p){
@@ -1938,18 +1987,24 @@ function renderDetalhe(p){
     html += '<div style="font-size:10px;color:'+srCor+';margin-top:3px;font-weight:700">'+srLbl+'</div>';
     html += '</div>';
 
-    // Barras dos 5 componentes
+    // Barras dos 5 componentes — labels dinâmicos por tipo de mercado
     html += '<div style="flex:1;display:flex;flex-direction:column;gap:6px">';
+    // Subtítulo do contexto
+    var ctxLabel = sr.tipo_merc==='casa' ? '📍 Score referente ao time da CASA'
+                 : sr.tipo_merc==='fora' ? '📍 Score referente ao time de FORA'
+                 : sr.tipo_merc==='jogo' ? '📍 Score referente ao JOGO (bilateral)'
+                 :                         '📍 Score referente ao JOGO — perfil de gol';
+    html += '<div style="font-size:10px;color:#388bfd;margin-bottom:4px;font-style:italic">'+ctxLabel+'</div>';
     var comps = [
-      {lbl:'EV (30%)',    v:sr.c_ev,    cor:'#00e5a0', tip:(sr.ev*100).toFixed(1)+'%'},
-      {lbl:'AUC (20%)',   v:sr.c_auc,   cor:'#388bfd', tip:sr.auc.toFixed(3)+' '+mercNomes[sr.mercado]},
-      {lbl:'IL (20%)',    v:sr.c_il,    cor:'#bc8cff', tip:(sr.c_il*100).toFixed(0)+'/100'},
-      {lbl:'RTM inv (15%)',v:sr.c_rtm,  cor:'#f5c842', tip:'|Z|='+calcRTM(p).maxZ.toFixed(2)+'σ'},
-      {lbl:'Delta (15%)', v:sr.c_delta, cor:'#ff8c42', tip:(sr.c_delta*100).toFixed(0)+'/100'},
+      {lbl:'EV (30%)',          v:sr.c_ev,    cor:'#00e5a0', tip:(sr.ev*100).toFixed(1)+'%'},
+      {lbl:'AUC (20%)',         v:sr.c_auc,   cor:'#388bfd', tip:sr.auc.toFixed(3)+' '+mercNomes[sr.mercado]},
+      {lbl:(sr.lbl_il||'IL')+' (20%)',   v:sr.c_il,    cor:'#bc8cff', tip:(sr.c_il*100).toFixed(0)+'/100'},
+      {lbl:'RTM inv (15%)',     v:sr.c_rtm,   cor:'#f5c842', tip:'|Z|='+calcRTM(p).maxZ.toFixed(2)+'σ'},
+      {lbl:(sr.lbl_delta||'Delta')+' (15%)', v:sr.c_delta, cor:'#ff8c42', tip:(sr.c_delta*100).toFixed(0)+'/100'},
     ];
     comps.forEach(function(c){
       html += '<div style="display:flex;align-items:center;gap:6px">';
-      html += '<div style="font-size:10px;color:#6e7d8f;min-width:88px">'+c.lbl+'</div>';
+      html += '<div style="font-size:10px;color:#6e7d8f;min-width:104px;white-space:nowrap">'+c.lbl+'</div>';
       html += '<div style="flex:1;height:5px;background:#1e2d3d;border-radius:3px"><div style="width:'+Math.round(c.v*100)+'%;height:5px;background:'+c.cor+';border-radius:3px"></div></div>';
       html += '<div style="font-size:10px;font-family:var(--font-mono);color:'+c.cor+';min-width:56px;text-align:right">'+c.tip+'</div>';
       html += '</div>';
