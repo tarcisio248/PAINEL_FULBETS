@@ -1010,7 +1010,9 @@ function normalizar(raw){
       // Tentar extrair de date_unix
       var unix = parseFloat(gv(r,m,'date_unix','date','unix')||0);
       if(unix > 0){
-        var dt = new Date(unix * 1000);
+        // Forçar UTC-3 (Brasília) independente do timezone do navegador
+        var offset_ms = -3 * 60 * 60 * 1000;
+        var dt = new Date((unix * 1000) + offset_ms);
         data = dt.getUTCFullYear()+'-'+String(dt.getUTCMonth()+1).padStart(2,'0')+'-'+String(dt.getUTCDate()).padStart(2,'0');
         hora = String(dt.getUTCHours()).padStart(2,'0')+':'+String(dt.getUTCMinutes()).padStart(2,'0');
       }

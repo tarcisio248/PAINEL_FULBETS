@@ -1007,9 +1007,11 @@ function normalizar(raw){
       // Tentar extrair de date_unix
       var unix = parseFloat(gv(r,m,'date_unix','date','unix')||0);
       if(unix > 0){
-        var dt = new Date(unix * 1000);
-        data = dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
-        hora = String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
+        // Forçar UTC-3 (Brasília) independente do timezone do navegador
+        var offset_ms = -3 * 60 * 60 * 1000;
+        var dt = new Date((unix * 1000) + offset_ms);
+        data = dt.getUTCFullYear()+'-'+String(dt.getUTCMonth()+1).padStart(2,'0')+'-'+String(dt.getUTCDate()).padStart(2,'0');
+        hora = String(dt.getUTCHours()).padStart(2,'0')+':'+String(dt.getUTCMinutes()).padStart(2,'0');
       }
     }
 
@@ -1309,27 +1311,34 @@ function passaFiltro(p){
     return rtmObj && rtmObj.nivel !== 'ok' && ilAlvo < 0.40;
   }
 
+  // ── Score_ref — mercado detectado é autoritativo ───────────
+  // Se o SR já identificou um mercado, o jogo SÓ entra no filtro
+  // correspondente. Não vaza para outros filtros.
+  var sr = calcScoreRef(p);
+  var sr_merc = sr ? sr.mercado : null;
+
   // ════════════════════════════════════════════════════════════
   // CAMINHO A — Back Casa / Back Fora
-  // AUC 0.65 — modelo tem fundamento real
-  // Critério: EV>3% É condição suficiente + convergência estrutural
   // ════════════════════════════════════════════════════════════
   if(filtroAtivo==='bc'){
-    // Gate 1: EV mínimo
+    // Se SR detectou outro mercado → não pertence a este filtro
+    if(sr_merc && sr_merc !== 'bc') return false;
+    // Se SR aponta bc → entra direto
+    if(sr_merc === 'bc') return true;
+    // SR ausente → gates primários decidem
     if((p.ev_bc||0) <= 0.03) return false;
-    // Gate 2: fallback se CSV antigo
     var tem_v3 = (p.elo_delta||0) !== 0 || (p.prob_bc||0) !== 0;
     if(!tem_v3) return true;
-    // Gate 3: convergência estrutural (ELO + prob + xG)
     var xg_diff = (p.xg_pre_diff||0) !== 0 ? (p.xg_pre_diff||0) : (p.xg_ca||0)-(p.xg_fo||0);
     if(!( (p.elo_delta||0) > 30 && (p.prob_bc||0) > 0.55 && xg_diff > 0 )) return false;
-    // Gate 4 (novo): IL não pode ser FALSO_FAVORITO confirmado para a casa
     var cl_il = (p.classificacao_il||'').toUpperCase();
     if(cl_il === 'FALSO_FAVORITO_CASA') return false;
     return true;
   }
 
   if(filtroAtivo==='bf'){
+    if(sr_merc && sr_merc !== 'bf') return false;
+    if(sr_merc === 'bf') return true;
     if((p.ev_bf||0) <= 0.03) return false;
     var tem_v3b = (p.elo_delta||0) !== 0 || (p.prob_bf||0) !== 0;
     if(!tem_v3b) return true;
@@ -1342,57 +1351,50 @@ function passaFiltro(p){
 
   // ════════════════════════════════════════════════════════════
   // CAMINHO B — Mercados de gol
-  // AUC ~0.51 — modelo é fraco, exige CONFIRMAÇÃO DUPLA
-  // EV>3% NÃO é suficiente sozinho
   // ════════════════════════════════════════════════════════════
 
   if(filtroAtivo==='btts'){
-    // Gate 1: EV mínimo (aviso visual — AUC fraco)
+    if(sr_merc && sr_merc !== 'btts') return false;
+    if(sr_merc === 'btts') return true;
     if((p.ev_btts||0) <= 0.03) return false;
-    // Gate 2: prob mínima do modelo
     if((p.prob_btts||0) <= 0.55) return false;
-    // Gate 3: xG ambos os times acima de 1.0 (jogo aberto)
     if(!( (p.xg_ca||0) > 1.0 && (p.xg_fo||0) > 1.0 )) return false;
-    // Gate 4 (confirmação dupla): Luck Factor ambos ≤ 0.5 (não dependem de sorte)
     var lkH = Math.abs(p.luck_home||0);
     var lkA = Math.abs(p.luck_away||0);
     return lkH <= 0.5 && lkA <= 0.5;
   }
 
   if(filtroAtivo==='ov25'){
-    // Gate 1: EV mínimo
+    if(sr_merc && sr_merc !== 'ov25') return false;
+    if(sr_merc === 'ov25') return true;
     if((p.ev_over25||0) <= 0.03) return false;
-    // Gate 2: xG soma ≥ 2.8 (jogo com expectativa de gols alta)
     var xgSoma = (p.xg_ca||0) + (p.xg_fo||0);
     if(xgSoma < 2.8) return false;
-    // Gate 3 (confirmação dupla): Score HT ≥ 55 via calcScoreOvHT
     var sHT = calcScoreOvHT(p);
     return sHT >= 55;
   }
 
   if(filtroAtivo==='ovht'){
-    // Over HT NÃO usa EV do modelo (AUC fraco)
-    // Critério exclusivo: Score HT ≥ threshold + CV aceitável
+    if(sr_merc && sr_merc !== 'ovht') return false;
+    if(sr_merc === 'ovht') return true;
     var pgCa=temPerfilGol?buscarPerfil(perfilGol,p.liga,p.casa):null;
     var pgFo=temPerfilGol?buscarPerfil(perfilGol,p.liga,p.fora):null;
     var ouCa=temPerfilOU?buscarPerfil(perfilOU,p.liga,p.casa):null;
     var ouFo=temPerfilOU?buscarPerfil(perfilOU,p.liga,p.fora):null;
     var res = calcScoreOver05HT(p,pgCa,pgFo,ouCa,ouFo);
     if(res.score < OVHT_THRESHOLD) return false;
-    // Gate adicional: CV não pode ser extremo (>80%)
     return res.cvMed <= 80;
   }
 
   if(filtroAtivo==='ovft'){
-    // Over FT NÃO usa EV do modelo (AUC fraco)
-    // Critério exclusivo: Score M70+ ≥ threshold + avg_min razoável
+    if(sr_merc && sr_merc !== 'ovft') return false;
+    if(sr_merc === 'ovft') return true;
     var pmCa=temPerfilM60?buscarPerfil(perfilM60,p.liga,p.casa):null;
     var pmFo=temPerfilM60?buscarPerfil(perfilM60,p.liga,p.fora):null;
     var ouCa2=temPerfilOU?buscarPerfil(perfilOU,p.liga,p.casa):null;
     var ouFo2=temPerfilOU?buscarPerfil(perfilOU,p.liga,p.fora):null;
     var resFT = calcScoreOverFT(p,pmCa,pmFo,ouCa2,ouFo2);
     if(resFT.score < OVFT_THRESHOLD) return false;
-    // Gate adicional: pelo menos um time com avg_min < 78m
     return (resFT.avgCa > 0 && resFT.avgCa < 78) || (resFT.avgFo > 0 && resFT.avgFo < 78);
   }
 
