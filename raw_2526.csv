@@ -6940,3 +6940,5 @@ fixture_id,league,season_id,date_unix,home_id,away_id,home_team,away_team,score_
 8419337,Argentina_1 Liga Profesional,16571,1769205600,711,704,San Lorenzo,Lanús,2,3,0,2,2.73,2.47,3.16,2.45,3.2,1.81,1.84,1.61,0.0,0.0,17,13,4,6,6,8,0.0,0.0,0
 8419338,Argentina_1 Liga Profesional,16571,1769209200,702,709,Independiente,Estudiantes,1,1,1,0,2.4,2.77,3.39,2.25,2.87,0.0,1.37,0.97,0.0,0.0,13,11,3,2,10,5,0.0,0.0,1
 8419341,Argentina_1 Liga Profesional,16571,1769992200,710,718,Rosario Central,River Plate,0,0,0,0,2.8,2.9,2.87,2.06,2.65,1.53,1.26,1.87,1.52,2.08,9,17,3,4,6,3,1.5,3.0,0
+8432024,Colombia_1 Liga BetPlay,16614,1774660200,2139,2133,Atlético Bucaramanga,Santa Fe,1,2,1,1,1.85,3.1,4.0,2.1,2.44,1.49,1.52,1.2,1.32,1.45,14,9,5,5,3,5,1.58,1.25,1
+8432026,Colombia_1 Liga BetPlay,16614,1774645200,2147,2146,Rionegro Águilas,Alianza Petrolera,1,0,0,0,2.06,3.04,3.97,2.06,2.59,1.48,1.38,0.83,1.24,1.12,12,9,5,1,5,5,1.33,0.92,0

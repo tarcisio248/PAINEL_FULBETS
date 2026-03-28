@@ -3,9 +3,6 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
-<meta http-equiv="Pragma" content="no-cache"/>
-<meta http-equiv="Expires" content="0"/>
 <title>FULLBETS — 2026-03-21</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <style>
@@ -1111,7 +1108,6 @@ function normalizar(raw){
       il_casa:           toN(gv(r,m,'IL_casa','il_casa'))||null,
       il_fora:           toN(gv(r,m,'IL_fora','il_fora'))||null,
       classificacao_il:  gv(r,m,'classificacao_IL','classificacao_il')||'',
-      tem_odds:          toN(gv(r,m,'tem_odds'))||0,  // 0=sem odds reais (IL menos preciso)
     };
   });
 }
@@ -1175,8 +1171,6 @@ function carregarBaseHistorica(txt, nome){
   document.getElementById('dz5').classList.add('loaded');
 }
 
-var _rrT=null;
-function _reRender(){clearTimeout(_rrT);_rrT=setTimeout(function(){if(partidas&&partidas.length>0){renderTopbar();renderLista();atualizarBadges();}},120);}
 function enriquecerComBase(){
   partidas.forEach(function(p){
     var chave=((p.liga||'')+'|'+(p.casa||'')+'|'+(p.fora||'')).toLowerCase();
@@ -1200,7 +1194,6 @@ function enriquecerComBase(){
     if(!p.res_home&&tN(b['score_home'])>0) p.res_home=tN(b['score_home']);
     if(!p.res_away) p.res_away=tN(b['score_away']);
   });
-  _reRender();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1318,27 +1311,34 @@ function passaFiltro(p){
     return rtmObj && rtmObj.nivel !== 'ok' && ilAlvo < 0.40;
   }
 
+  // ── Score_ref — mercado detectado é autoritativo ───────────
+  // Se o SR já identificou um mercado, o jogo SÓ entra no filtro
+  // correspondente. Não vaza para outros filtros.
+  var sr = calcScoreRef(p);
+  var sr_merc = sr ? sr.mercado : null;
+
   // ════════════════════════════════════════════════════════════
   // CAMINHO A — Back Casa / Back Fora
-  // AUC 0.65 — modelo tem fundamento real
-  // Critério: EV>3% É condição suficiente + convergência estrutural
   // ════════════════════════════════════════════════════════════
   if(filtroAtivo==='bc'){
-    // Gate 1: EV mínimo
+    // Se SR detectou outro mercado → não pertence a este filtro
+    if(sr_merc && sr_merc !== 'bc') return false;
+    // Se SR aponta bc → entra direto
+    if(sr_merc === 'bc') return true;
+    // SR ausente → gates primários decidem
     if((p.ev_bc||0) <= 0.03) return false;
-    // Gate 2: fallback se CSV antigo
     var tem_v3 = (p.elo_delta||0) !== 0 || (p.prob_bc||0) !== 0;
     if(!tem_v3) return true;
-    // Gate 3: convergência estrutural (ELO + prob + xG)
     var xg_diff = (p.xg_pre_diff||0) !== 0 ? (p.xg_pre_diff||0) : (p.xg_ca||0)-(p.xg_fo||0);
     if(!( (p.elo_delta||0) > 30 && (p.prob_bc||0) > 0.55 && xg_diff > 0 )) return false;
-    // Gate 4 (novo): IL não pode ser FALSO_FAVORITO confirmado para a casa
     var cl_il = (p.classificacao_il||'').toUpperCase();
     if(cl_il === 'FALSO_FAVORITO_CASA') return false;
     return true;
   }
 
   if(filtroAtivo==='bf'){
+    if(sr_merc && sr_merc !== 'bf') return false;
+    if(sr_merc === 'bf') return true;
     if((p.ev_bf||0) <= 0.03) return false;
     var tem_v3b = (p.elo_delta||0) !== 0 || (p.prob_bf||0) !== 0;
     if(!tem_v3b) return true;
@@ -1351,57 +1351,50 @@ function passaFiltro(p){
 
   // ════════════════════════════════════════════════════════════
   // CAMINHO B — Mercados de gol
-  // AUC ~0.51 — modelo é fraco, exige CONFIRMAÇÃO DUPLA
-  // EV>3% NÃO é suficiente sozinho
   // ════════════════════════════════════════════════════════════
 
   if(filtroAtivo==='btts'){
-    // Gate 1: EV mínimo (aviso visual — AUC fraco)
+    if(sr_merc && sr_merc !== 'btts') return false;
+    if(sr_merc === 'btts') return true;
     if((p.ev_btts||0) <= 0.03) return false;
-    // Gate 2: prob mínima do modelo
     if((p.prob_btts||0) <= 0.55) return false;
-    // Gate 3: xG ambos os times acima de 1.0 (jogo aberto)
     if(!( (p.xg_ca||0) > 1.0 && (p.xg_fo||0) > 1.0 )) return false;
-    // Gate 4 (confirmação dupla): Luck Factor ambos ≤ 0.5 (não dependem de sorte)
     var lkH = Math.abs(p.luck_home||0);
     var lkA = Math.abs(p.luck_away||0);
     return lkH <= 0.5 && lkA <= 0.5;
   }
 
   if(filtroAtivo==='ov25'){
-    // Gate 1: EV mínimo
+    if(sr_merc && sr_merc !== 'ov25') return false;
+    if(sr_merc === 'ov25') return true;
     if((p.ev_over25||0) <= 0.03) return false;
-    // Gate 2: xG soma ≥ 2.8 (jogo com expectativa de gols alta)
     var xgSoma = (p.xg_ca||0) + (p.xg_fo||0);
     if(xgSoma < 2.8) return false;
-    // Gate 3 (confirmação dupla): Score HT ≥ 55 via calcScoreOvHT
     var sHT = calcScoreOvHT(p);
     return sHT >= 55;
   }
 
   if(filtroAtivo==='ovht'){
-    // Over HT NÃO usa EV do modelo (AUC fraco)
-    // Critério exclusivo: Score HT ≥ threshold + CV aceitável
+    if(sr_merc && sr_merc !== 'ovht') return false;
+    if(sr_merc === 'ovht') return true;
     var pgCa=temPerfilGol?buscarPerfil(perfilGol,p.liga,p.casa):null;
     var pgFo=temPerfilGol?buscarPerfil(perfilGol,p.liga,p.fora):null;
     var ouCa=temPerfilOU?buscarPerfil(perfilOU,p.liga,p.casa):null;
     var ouFo=temPerfilOU?buscarPerfil(perfilOU,p.liga,p.fora):null;
     var res = calcScoreOver05HT(p,pgCa,pgFo,ouCa,ouFo);
     if(res.score < OVHT_THRESHOLD) return false;
-    // Gate adicional: CV não pode ser extremo (>80%)
     return res.cvMed <= 80;
   }
 
   if(filtroAtivo==='ovft'){
-    // Over FT NÃO usa EV do modelo (AUC fraco)
-    // Critério exclusivo: Score M70+ ≥ threshold + avg_min razoável
+    if(sr_merc && sr_merc !== 'ovft') return false;
+    if(sr_merc === 'ovft') return true;
     var pmCa=temPerfilM60?buscarPerfil(perfilM60,p.liga,p.casa):null;
     var pmFo=temPerfilM60?buscarPerfil(perfilM60,p.liga,p.fora):null;
     var ouCa2=temPerfilOU?buscarPerfil(perfilOU,p.liga,p.casa):null;
     var ouFo2=temPerfilOU?buscarPerfil(perfilOU,p.liga,p.fora):null;
     var resFT = calcScoreOverFT(p,pmCa,pmFo,ouCa2,ouFo2);
     if(resFT.score < OVFT_THRESHOLD) return false;
-    // Gate adicional: pelo menos um time com avg_min < 78m
     return (resFT.avgCa > 0 && resFT.avgCa < 78) || (resFT.avgFo > 0 && resFT.avgFo < 78);
   }
 
@@ -1872,10 +1865,6 @@ function renderDetalhe(p){
 
     html += '<div class="detail-section">';
     html += '<div class="detail-section-title">🎯 Índice de Legitimidade (IL)';
-    // Aviso quando IL calculado sem odds reais
-    if(!p.tem_odds){
-      html += ' <span style="font-size:9px;padding:1px 7px;border-radius:4px;background:rgba(110,125,143,.15);border:1px solid rgba(110,125,143,.3);color:#6e7d8f;margin-left:4px">⚠ sem odds — IL estimado</span>';
-    }
     html += ' <span style="font-size:10px;font-weight:700;padding:1px 8px;border-radius:4px;background:'+cfg.bg+';border:1px solid '+cfg.cor+'55;color:'+cfg.cor+';margin-left:4px">'+cfg.icon+' '+(cl.replace('_CASA','').replace('_FORA','').replace(/_/g,' '))+'</span>';
     html += '</div>';
     html += '<div style="background:'+cfg.bg+';border:1px solid '+cfg.cor+'44;border-radius:12px;padding:14px;margin-bottom:10px">';
@@ -2009,11 +1998,11 @@ function renderDetalhe(p){
                  :                         '📍 Score referente ao JOGO — perfil de gol';
     html += '<div style="font-size:10px;color:#388bfd;margin-bottom:4px;font-style:italic">'+ctxLabel+'</div>';
     var comps = [
-      {lbl:'EV (30%)',                          v:sr.c_ev,    cor:'#00e5a0', tip:(sr.ev*100).toFixed(1)+'%'},
-      {lbl:'AUC (20%)',                         v:sr.c_auc,   cor:'#388bfd', tip:sr.auc.toFixed(3)+' '+mercNomes[sr.mercado]},
-      {lbl:(sr.lbl_il||'IL')+' (20%)',          v:sr.c_il,    cor:'#bc8cff', tip:(sr.c_il*100).toFixed(0)+'/100'},
-      {lbl:'RTM inv (15%)',                     v:sr.c_rtm,   cor:'#f5c842', tip:'|Z|='+calcRTM(p).maxZ.toFixed(2)+'σ'},
-      {lbl:(sr.lbl_delta||'Delta')+' (15%)',    v:sr.c_delta, cor:'#ff8c42', tip:(sr.c_delta*100).toFixed(0)+'/100'},
+      {lbl:'EV (30%)',          v:sr.c_ev,    cor:'#00e5a0', tip:(sr.ev*100).toFixed(1)+'%'},
+      {lbl:'AUC (20%)',         v:sr.c_auc,   cor:'#388bfd', tip:sr.auc.toFixed(3)+' '+mercNomes[sr.mercado]},
+      {lbl:(sr.lbl_il||'IL')+' (20%)',   v:sr.c_il,    cor:'#bc8cff', tip:(sr.c_il*100).toFixed(0)+'/100'},
+      {lbl:'RTM inv (15%)',     v:sr.c_rtm,   cor:'#f5c842', tip:'|Z|='+calcRTM(p).maxZ.toFixed(2)+'σ'},
+      {lbl:(sr.lbl_delta||'Delta')+' (15%)', v:sr.c_delta, cor:'#ff8c42', tip:(sr.c_delta*100).toFixed(0)+'/100'},
     ];
     comps.forEach(function(c){
       html += '<div style="display:flex;align-items:center;gap:6px">';
@@ -2396,7 +2385,6 @@ function popularFiltrosDatas(){
   grid.innerHTML = '';
   var datas = partidas.map(function(p){return p.data;}).filter(Boolean);
   datas = datas.filter(function(v,i,a){return a.indexOf(v)===i;}).sort();
-  if(dataFiltroAtiva !== 'todas' && datas.indexOf(dataFiltroAtiva) === -1) dataFiltroAtiva = 'todas';
   datas.forEach(function(d){
     var pts = d.split('-');
     var meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -2491,60 +2479,55 @@ function calcScoreOvFT(p){
   return 0.40*scoreA + 0.30*scoreB + 0.20*scoreC + 0.10*scoreD;
 }
 
-// ── ANTI-BFCACHE: se browser restaurar sessão antiga, recarrega do zero ──
-window.addEventListener('pageshow', function(e){ if(e.persisted) window.location.reload(true); });
-
 document.addEventListener('DOMContentLoaded', function(){
+  document.getElementById('dfb-todas').addEventListener('click',function(){setFiltroData('todas');});
+  setupSlot('dz1','fi1',function(f){ lerCSV(f,carregarJogos); });
+  setupSlot('dz2','fi2',function(f){ lerCSV(f,carregarPerfilGol); });
+  setupSlot('dz3','fi3',function(f){ lerCSV(f,carregarPerfilM60); });
+  setupSlot('dz4','fi4',function(f){ lerCSV(f,carregarPerfilOU); });
+  setupSlot('dz5','fi5',function(f){ lerCSV(f,carregarBaseHistorica); });
 
-  // Slots manuais (drag-and-drop continua funcionando)
-  document.getElementById('dfb-todas').addEventListener('click', function(){ setFiltroData('todas'); });
-  setupSlot('dz1','fi1',function(f){ lerCSV(f, carregarJogos); });
-  setupSlot('dz2','fi2',function(f){ lerCSV(f, carregarPerfilGol); });
-  setupSlot('dz3','fi3',function(f){ lerCSV(f, carregarPerfilM60); });
-  setupSlot('dz4','fi4',function(f){ lerCSV(f, carregarPerfilOU); });
-  setupSlot('dz5','fi5',function(f){ lerCSV(f, carregarBaseHistorica); });
+  // ── AUTOLOAD: busca CSVs direto do repositório ──────────────
+  var BASE = (function(){
+    var p = window.location.pathname.replace(/\/[^/]*$/, '/');
+    return window.location.origin + p;
+  })();
 
-  // ── Reset total de estado — sessão sempre começa limpa ──────
-  partidas = []; perfilGol = {}; perfilM60 = {}; perfilOU = {};
-  baseHistorica = {}; temPerfilGol = false; temPerfilM60 = false;
-  temPerfilOU = false; temBase = false; dataFiltroAtiva = 'todas';
+  var csvs = [
+    { url: BASE + 'rodada_atual_sos_v3.csv',                   fn: carregarJogos        },
+    { url: BASE + '0_PAINEL_EVOLUTION_JOGOS_MOMENTO_1GOL_API.csv', fn: carregarPerfilGol    },
+    { url: BASE + '0_PAINEL_EVOLUTION_JOGOS_GOLS_M60_API.csv', fn: carregarPerfilM60    },
+    { url: BASE + '0_PAINEL_PERFIL_OVER_UNDER.csv',            fn: carregarPerfilOU     },
+    { url: BASE + 'base_historica_v3.csv',                     fn: carregarBaseHistorica}
+  ];
 
-  // ── URL base + cache-busting único por carregamento ─────────
-  var BASE = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/');
-  var CB   = '?t=' + Date.now();
+  var loaded = 0;
+  var total  = csvs.length;
 
-  // Indicador visual
+  // Mostrar indicador de carregamento na tela de upload
   var sub = document.querySelector('.upload-sub');
   if(sub) sub.textContent = 'Carregando dados automaticamente…';
 
-  // ── Flag garante que iniciarDash() rode exatamente uma vez ──
-  var _ok = false;
-  function _iniciar(){
-    if(!_ok && partidas && partidas.length > 0){
-      _ok = true;
-      setTimeout(function(){ popularFiltrosDatas(); iniciarDash(); }, 60);
-    }
-  }
-
-  // ── CSV PRINCIPAL — abre o painel imediatamente ao carregar ─
-  fetch(BASE + 'rodada_atual_sos_v3.csv' + CB)
-    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); })
-    .then(function(txt){ carregarJogos(txt, 'rodada_atual_sos_v3.csv'); _iniciar(); })
-    .catch(function(e){ console.error('[AUTOLOAD] rodada_atual_sos_v3.csv:', e.message); });
-
-  // ── CSVs OPCIONAIS — paralelo, enriquecem sem travar ────────
-  [
-    { nome: '0_PAINEL_EVOLUTION_JOGOS_MOMENTO_1GOL_API.csv', fn: carregarPerfilGol     },
-    { nome: '0_PAINEL_EVOLUTION_JOGOS_GOLS_M60_API.csv',     fn: carregarPerfilM60     },
-    { nome: '0_PAINEL_PERFIL_OVER_UNDER.csv',                fn: carregarPerfilOU      },
-    { nome: 'base_historica_v3.csv',                         fn: carregarBaseHistorica }
-  ].forEach(function(c){
-    fetch(BASE + c.nome + CB)
-      .then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); })
-      .then(function(txt){ c.fn(txt, c.nome); })
-      .catch(function(e){ console.warn('[AUTOLOAD]', c.nome, e.message); });
+  csvs.forEach(function(c){
+    fetch(c.url)
+      .then(function(r){
+        if(!r.ok) throw new Error('HTTP '+r.status+' — '+c.url);
+        return r.text();
+      })
+      .then(function(txt){
+        c.fn(txt, c.url.split('/').pop());
+        loaded++;
+        if(loaded === total) iniciarDash();
+      })
+      .catch(function(err){
+        console.warn('[AUTOLOAD] Falha em '+c.url+':', err.message);
+        loaded++;
+        // Mesmo com falha nos opcionais, inicia se jogos já carregaram
+        if(loaded === total && typeof partidas !== 'undefined' && partidas && partidas.length > 0){
+          iniciarDash();
+        }
+      });
   });
-
 });
 </script>
 
